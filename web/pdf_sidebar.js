@@ -46,6 +46,8 @@ const SidebarView = {
  *   (in which the viewer element is placed).
  * @property {HTMLButtonElement} toggleButton - The button used for
  *   opening/closing the sidebar.
+ * @property {HTMLButtonElement} backButton - The button used for
+ *   return back to original pdf page
  * @property {HTMLButtonElement} thumbnailButton - The button used to show
  *   the thumbnail view.
  * @property {HTMLButtonElement} outlineButton - The button used to show
@@ -88,6 +90,7 @@ class PDFSidebar {
     this.outerContainer = elements.outerContainer;
     this.viewerContainer = elements.viewerContainer;
     this.toggleButton = elements.toggleButton;
+    this.backButton = elements.backButton;
 
     this.thumbnailButton = elements.thumbnailButton;
     this.outlineButton = elements.outlineButton;
@@ -411,6 +414,10 @@ class PDFSidebar {
 
     this.toggleButton.addEventListener("click", () => {
       this.toggle();
+    });
+
+    this.backButton.addEventListener("click", () => {
+      history.back();
     });
 
     // Buttons for switching views.
