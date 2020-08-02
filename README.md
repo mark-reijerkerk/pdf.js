@@ -12,4 +12,4 @@ After building, you can find components in `build/generic_et/web/`. Copy the com
 
 ### More Information
 
-See [original README.md](README_ORG.md)
+See [the original README.md](README_ORG.md).
