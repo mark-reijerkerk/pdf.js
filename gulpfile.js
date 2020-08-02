@@ -803,8 +803,8 @@ gulp.task(
   "generic-et",
   gulp.series("buildnumber", "default_preferences", "locale", function () {
     console.log();
-    console.log("### Creating generic viewer for Edge Translate");
-    var defines = builder.merge(DEFINES, { GENERIC: true });
+    console.log("### Creating generic viewer (ES5) for Edge Translate");
+    var defines = builder.merge(DEFINES, { GENERIC: true, SKIP_BABEL: false });
 
     return buildGenericET(defines, GENERIC_ET_DIR);
   })
