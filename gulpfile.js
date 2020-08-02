@@ -51,6 +51,7 @@ var EXTENSION_SRC_DIR = "extensions/";
 var BASELINE_DIR = BUILD_DIR + "baseline/";
 var MOZCENTRAL_BASELINE_DIR = BUILD_DIR + "mozcentral.baseline/";
 var GENERIC_DIR = BUILD_DIR + "generic/";
+var GENERIC_ET_DIR = BUILD_DIR + "generic_et/";
 var GENERIC_ES5_DIR = BUILD_DIR + "generic-es5/";
 var COMPONENTS_DIR = BUILD_DIR + "components/";
 var COMPONENTS_ES5_DIR = BUILD_DIR + "components-es5/";
@@ -65,6 +66,9 @@ var LIB_DIR = BUILD_DIR + "lib/";
 var DIST_DIR = BUILD_DIR + "dist/";
 var COMMON_WEB_FILES = ["web/images/*.{png,svg,gif,cur}", "web/debugger.js"];
 var MOZCENTRAL_DIFF_FILE = "mozcentral.diff";
+
+// Locales used in Edge Translate
+var EDGE_TRANSLATE_LOCALES = ["en-CA", "en-GB", "en-US", "ru", "zh-CN", "zh-TW"];
 
 var REPO = "git@github.com:mozilla/pdf.js.git";
 var DIST_REPO_URL = "https://github.com/mozilla/pdfjs-dist";
@@ -734,6 +738,52 @@ function buildGeneric(defines, dir) {
   ]);
 }
 
+function buildGenericET(defines, dir) {
+  rimraf.sync(dir);
+
+  var locales = "";
+  EDGE_TRANSLATE_LOCALES.forEach(locale => {
+    locales +=
+        "[" +
+        locale +
+        "]\n" +
+        "@import url(" +
+        locale +
+        "/viewer.properties)\n\n";
+  });
+
+  return merge([
+    createMainBundle(defines).pipe(gulp.dest(dir + "web/lib")),
+    createWorkerBundle(defines).pipe(gulp.dest(dir + "web/lib")),
+    createWebBundle(defines).pipe(gulp.dest(dir + "web")),
+    gulp.src(COMMON_WEB_FILES, { base: "web/" }).pipe(gulp.dest(dir + "web")),
+    gulp.src("LICENSE").pipe(gulp.dest(dir)),
+    gulp
+      .src("web/locale/@(" + EDGE_TRANSLATE_LOCALES.join("|") + ")/viewer.properties", {
+        base: "web/",
+      })
+      .pipe(gulp.dest(dir + "web")),
+    createStringSource("locale.properties", locales).pipe(
+      gulp.dest(dir + "web/locale")
+    ),
+    gulp
+      .src(["external/bcmaps/*.bcmap", "external/bcmaps/LICENSE"], {
+        base: "external/bcmaps",
+      })
+      .pipe(gulp.dest(dir + "web/cmaps")),
+    preprocessHTML("web/viewer.html", defines).pipe(gulp.dest(dir + "web")),
+    preprocessCSS("web/viewer.css", "generic", defines, true)
+      .pipe(
+        postcss([
+          cssvariables(CSS_VARIABLES_CONFIG),
+          calc(),
+          autoprefixer(AUTOPREFIXER_CONFIG),
+        ])
+      )
+      .pipe(gulp.dest(dir + "web")),
+  ]);
+}
+
 // Builds the generic production viewer that is only compatible with up-to-date
 // HTML5 browsers, which implement modern ECMAScript features.
 gulp.task(
@@ -744,6 +794,19 @@ gulp.task(
     var defines = builder.merge(DEFINES, { GENERIC: true });
 
     return buildGeneric(defines, GENERIC_DIR);
+  })
+);
+
+// Builds the generic production viewer that is only compatible with up-to-date
+// HTML5 browsers, which implement modern ECMAScript features for Edge Translate.
+gulp.task(
+  "generic-et",
+  gulp.series("buildnumber", "default_preferences", "locale", function () {
+    console.log();
+    console.log("### Creating generic viewer for Edge Translate");
+    var defines = builder.merge(DEFINES, { GENERIC: true });
+
+    return buildGenericET(defines, GENERIC_ET_DIR);
   })
 );
 
