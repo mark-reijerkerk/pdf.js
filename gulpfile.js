@@ -68,7 +68,7 @@ var COMMON_WEB_FILES = ["web/images/*.{png,svg,gif,cur}", "web/debugger.js"];
 var MOZCENTRAL_DIFF_FILE = "mozcentral.diff";
 
 // Locales used in Edge Translate
-var EDGE_TRANSLATE_LOCALES = ["en-CA", "en-GB", "en-US", "ru", "zh-CN", "zh-TW"];
+var EDGE_TRANSLATE_LOCALES = ["en-CA", "en-GB", "en-US", "ru", "zh-CN", "zh-TW", "ja"];
 
 var REPO = "git@github.com:mozilla/pdf.js.git";
 var DIST_REPO_URL = "https://github.com/mozilla/pdfjs-dist";
