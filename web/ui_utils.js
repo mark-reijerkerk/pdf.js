@@ -985,6 +985,32 @@ function moveToEndOfArray(arr, condition) {
   }
 }
 
+/**
+ * Get the active or focused element in current DOM.
+ *
+ * Recursively search for the truly active or focused element incase there are
+ * shadow DOMs.
+ *
+ * @author Chen Jinlong <chenjinlong2016@outlook.com>
+ *
+ * @param {DocumentOrShadowRoot} root the root element.
+ *
+ * @returns {Element} the truly active or focused element.
+ */
+function getActiveOrFocusedElement(root) {
+  let curRoot = root || document;
+  let curActiveOrFocused =
+    curRoot.activeElement || curRoot.querySelector(":focus");
+
+  while (curActiveOrFocused && curActiveOrFocused.shadowRoot) {
+    curRoot = curActiveOrFocused.shadowRoot;
+    curActiveOrFocused =
+      curRoot.activeElement || curRoot.querySelector(":focus");
+  }
+
+  return curActiveOrFocused;
+}
+
 export {
   AutoPrintRegExp,
   CSS_UNITS,
@@ -1026,4 +1052,5 @@ export {
   WaitOnType,
   waitOnEventOrTimeout,
   moveToEndOfArray,
+  getActiveOrFocusedElement,
 };
