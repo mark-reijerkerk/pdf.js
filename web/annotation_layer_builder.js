@@ -41,7 +41,7 @@ class AnnotationLayerBuilder {
     downloadManager,
     annotationStorage = null,
     imageResourcesPath = "",
-    renderInteractiveForms = false,
+    renderInteractiveForms = true,
     l10n = NullL10n,
   }) {
     this.pageDiv = pageDiv;
@@ -60,9 +60,11 @@ class AnnotationLayerBuilder {
   /**
    * @param {PageViewport} viewport
    * @param {string} intent (default value is 'display')
+   * @returns {Promise<void>} A promise that is resolved when rendering of the
+   *   annotations is complete.
    */
   render(viewport, intent = "display") {
-    this.pdfPage.getAnnotations({ intent }).then(annotations => {
+    return this.pdfPage.getAnnotations({ intent }).then(annotations => {
       if (this._cancelled) {
         return;
       }
@@ -131,7 +133,7 @@ class DefaultAnnotationLayerFactory {
     pdfPage,
     annotationStorage = null,
     imageResourcesPath = "",
-    renderInteractiveForms = false,
+    renderInteractiveForms = true,
     l10n = NullL10n
   ) {
     return new AnnotationLayerBuilder({

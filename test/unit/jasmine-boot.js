@@ -80,6 +80,8 @@ function initializePDFJS(callback) {
       "pdfjs-test/unit/ui_utils_spec.js",
       "pdfjs-test/unit/unicode_spec.js",
       "pdfjs-test/unit/util_spec.js",
+      "pdfjs-test/unit/writer_spec.js",
+      "pdfjs-test/unit/xml_spec.js",
     ].map(function (moduleName) {
       // eslint-disable-next-line no-unsanitized/method
       return SystemJS.import(moduleName);

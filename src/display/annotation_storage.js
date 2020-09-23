@@ -13,9 +13,20 @@
  * limitations under the License.
  */
 
+/**
+ * Key/value storage for annotation data in forms.
+ */
 class AnnotationStorage {
   constructor() {
-    this._storage = Object.create(null);
+    this._storage = new Map();
+    this._modified = false;
+
+    // Callbacks to signal when the modification state is set or reset.
+    // This is used by the viewer to only bind on `beforeunload` if forms
+    // are actually edited to prevent doing so unconditionally since that
+    // can have undesirable efffects.
+    this.onSetModified = null;
+    this.onResetModified = null;
   }
 
   /**
@@ -29,11 +40,11 @@ class AnnotationStorage {
    * @returns {Object}
    */
   getOrCreateValue(key, defaultValue) {
-    if (key in this._storage) {
-      return this._storage[key];
+    if (this._storage.has(key)) {
+      return this._storage.get(key);
     }
 
-    this._storage[key] = defaultValue;
+    this._storage.set(key, defaultValue);
     return defaultValue;
   }
 
@@ -46,11 +57,42 @@ class AnnotationStorage {
    * @param {Object} value
    */
   setValue(key, value) {
-    this._storage[key] = value;
+    if (this._storage.get(key) !== value) {
+      this._setModified();
+    }
+    this._storage.set(key, value);
   }
 
   getAll() {
-    return this._storage;
+    if (this._storage.size === 0) {
+      return null;
+    }
+    return Object.fromEntries(this._storage);
+  }
+
+  get size() {
+    return this._storage.size;
+  }
+
+  /**
+   * @private
+   */
+  _setModified() {
+    if (!this._modified) {
+      this._modified = true;
+      if (typeof this.onSetModified === "function") {
+        this.onSetModified();
+      }
+    }
+  }
+
+  resetModified() {
+    if (this._modified) {
+      this._modified = false;
+      if (typeof this.onResetModified === "function") {
+        this.onResetModified();
+      }
+    }
   }
 }
 
