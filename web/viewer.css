@@ -60,6 +60,7 @@
   --treeitem-expanded-icon: url(images/treeitem-expanded.svg);
   --treeitem-collapsed-icon: url(images/treeitem-collapsed.svg);
   --toolbarButton-menuArrow-icon: url(images/toolbarButton-menuArrow.svg);
+  --toolbarButton-sidebarBack-icon: url(images/toolbarButton-sidebarBack.svg);
   --toolbarButton-sidebarToggle-icon: url(images/toolbarButton-sidebarToggle.svg);
   --toolbarButton-secondaryToolbarToggle-icon: url(images/toolbarButton-secondaryToolbarToggle.svg);
   --toolbarButton-pageUp-icon: url(images/toolbarButton-pageUp.svg);
@@ -130,7 +131,8 @@
     --loading-icon: url(images/loading-dark.svg);
     --treeitem-expanded-icon: url(images/treeitem-expanded-dark.svg);
     --treeitem-collapsed-icon: url(images/treeitem-collapsed-dark.svg);
-    --toolbarButton-menuArrow-icon: url(images/toolbarButton-menuArrow-dark.svg);
+	--toolbarButton-menuArrow-icon: url(images/toolbarButton-menuArrow-dark.svg);
+	--toolbarButton-sidebarBack-icon: url(images/toolbarButton-sidebarBack-dark.svg);
     --toolbarButton-sidebarToggle-icon: url(images/toolbarButton-sidebarToggle-dark.svg);
     --toolbarButton-secondaryToolbarToggle-icon: url(images/toolbarButton-secondaryToolbarToggle-dark.svg);
     --toolbarButton-pageUp-icon: url(images/toolbarButton-pageUp-dark.svg);
@@ -1001,7 +1003,7 @@ html[dir="rtl"] .secondaryToolbarButton::before {
 }
 
 .toolbarButton#sidebarBack::before {
-  content: url(images/toolbarButton-sidebarBack.png);
+  content: var(--toolbarButton-sidebarBack-icon);
 }
 
 html[dir="rtl"] .toolbarButton#sidebarBack::before {
