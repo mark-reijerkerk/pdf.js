@@ -67,6 +67,7 @@
   --toolbarButton-pageDown-icon: url(images/toolbarButton-pageDown.svg);
   --toolbarButton-zoomOut-icon: url(images/toolbarButton-zoomOut.svg);
   --toolbarButton-zoomIn-icon: url(images/toolbarButton-zoomIn.svg);
+  --toolbarButton-darkMode-icon: url(images/toolbarButton-darkMode.svg);
   --toolbarButton-presentationMode-icon: url(images/toolbarButton-presentationMode.svg);
   --toolbarButton-print-icon: url(images/toolbarButton-print.svg);
   --toolbarButton-openFile-icon: url(images/toolbarButton-openFile.svg);
@@ -131,14 +132,15 @@
     --loading-icon: url(images/loading-dark.svg);
     --treeitem-expanded-icon: url(images/treeitem-expanded-dark.svg);
     --treeitem-collapsed-icon: url(images/treeitem-collapsed-dark.svg);
-	--toolbarButton-menuArrow-icon: url(images/toolbarButton-menuArrow-dark.svg);
-	--toolbarButton-sidebarBack-icon: url(images/toolbarButton-sidebarBack-dark.svg);
+	  --toolbarButton-menuArrow-icon: url(images/toolbarButton-menuArrow-dark.svg);
+	  --toolbarButton-sidebarBack-icon: url(images/toolbarButton-sidebarBack-dark.svg);
     --toolbarButton-sidebarToggle-icon: url(images/toolbarButton-sidebarToggle-dark.svg);
     --toolbarButton-secondaryToolbarToggle-icon: url(images/toolbarButton-secondaryToolbarToggle-dark.svg);
     --toolbarButton-pageUp-icon: url(images/toolbarButton-pageUp-dark.svg);
     --toolbarButton-pageDown-icon: url(images/toolbarButton-pageDown-dark.svg);
     --toolbarButton-zoomOut-icon: url(images/toolbarButton-zoomOut-dark.svg);
     --toolbarButton-zoomIn-icon: url(images/toolbarButton-zoomIn-dark.svg);
+    --toolbarButton-darkMode-icon: url(images/toolbarButton-darkMode-dark.svg);
     --toolbarButton-presentationMode-icon: url(images/toolbarButton-presentationMode-dark.svg);
     --toolbarButton-print-icon: url(images/toolbarButton-print-dark.svg);
     --toolbarButton-openFile-icon: url(images/toolbarButton-openFile-dark.svg);
@@ -1058,6 +1060,11 @@ html[dir="rtl"] .toolbarButton.pageDown::before {
 
 .toolbarButton.zoomIn::before {
   content: var(--toolbarButton-zoomIn-icon);
+}
+
+.toolbarButton.darkMode::before,
+.secondaryToolbarButton.darkMode::before {
+  content: var(--toolbarButton-darkMode-icon);
 }
 
 .toolbarButton.presentationMode::before,
