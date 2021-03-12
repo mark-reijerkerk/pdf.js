@@ -262,6 +262,15 @@ const PDFViewerApplication = {
     }
     await this._initializeViewerComponents();
 
+    // Check dark mode option.
+    let inDarkMode = localStorage.getItem("pdfjs.dark_mode") || "false";
+    if (inDarkMode === "true") {
+      let cssElement = document.createElement("style");
+      cssElement.id = "pdfjs-darkmode-style";
+      cssElement.textContent = ".textLayer { background: black; }";
+      document.head.appendChild(cssElement);
+    }
+
     // Bind the various event handlers *after* the viewer has been
     // initialized, to prevent errors if an event arrives too soon.
     this.bindEvents();
@@ -1750,6 +1759,7 @@ const PDFViewerApplication = {
     eventBus._on("sidebarviewchanged", webViewerSidebarViewChanged);
     eventBus._on("pagemode", webViewerPageMode);
     eventBus._on("namedaction", webViewerNamedAction);
+    eventBus._on("darkmode", webViewerDarkMode);
     eventBus._on("presentationmodechanged", webViewerPresentationModeChanged);
     eventBus._on("presentationmode", webViewerPresentationMode);
     eventBus._on("print", webViewerPrint);
@@ -1837,6 +1847,7 @@ const PDFViewerApplication = {
     eventBus._off("sidebarviewchanged", webViewerSidebarViewChanged);
     eventBus._off("pagemode", webViewerPageMode);
     eventBus._off("namedaction", webViewerNamedAction);
+    eventBus._off("darkmode", webViewerDarkMode);
     eventBus._off("presentationmodechanged", webViewerPresentationModeChanged);
     eventBus._off("presentationmode", webViewerPresentationMode);
     eventBus._off("print", webViewerPrint);
@@ -2396,6 +2407,20 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
   };
 }
 
+function webViewerDarkMode() {
+  let inDarkMode = localStorage.getItem("pdfjs.dark_mode") || "false";
+  if (inDarkMode === "false") {
+    let cssElement = document.createElement("style");
+    cssElement.id = "pdfjs-darkmode-style";
+    cssElement.textContent = ".textLayer { background: black; }";
+    document.head.appendChild(cssElement);
+    localStorage.setItem("pdfjs.dark_mode", "true");
+  } else {
+    let cssElement = document.getElementById("pdfjs-darkmode-style");
+    if (cssElement) cssElement.remove();
+    localStorage.setItem("pdfjs.dark_mode", "false");
+  }
+}
 function webViewerPresentationMode() {
   PDFViewerApplication.requestPresentationMode();
 }

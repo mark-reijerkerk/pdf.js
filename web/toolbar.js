@@ -69,6 +69,7 @@ class Toolbar {
       { element: options.zoomOut, eventName: "zoomout" },
       { element: options.openFile, eventName: "openfile" },
       { element: options.print, eventName: "print" },
+      { element: options.darkModeButton, eventName: "darkmode" },
       {
         element: options.presentationModeButton,
         eventName: "presentationmode",
