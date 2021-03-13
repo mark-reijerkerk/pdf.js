@@ -40,7 +40,7 @@
     "needle": "^2.5.2",
     "postcss-calc": "^7.0.4",
     "postcss-css-variables": "^0.14.0",
-    "prettier": "^2.1.2",
+    "prettier": "^1.19.1",
     "puppeteer": "~3.3.0",
     "rimraf": "^2.7.1",
     "streamqueue": "^1.1.2",
@@ -71,5 +71,6 @@
     "type": "git",
     "url": "git://github.com/mozilla/pdf.js.git"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "dependencies": {}
 }
