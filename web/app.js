@@ -61,6 +61,7 @@ import { PDFSidebar, SidebarView } from "./pdf_sidebar.js";
 import { OverlayManager } from "./overlay_manager.js";
 import { PasswordPrompt } from "./password_prompt.js";
 import { PDFAttachmentViewer } from "./pdf_attachment_viewer.js";
+import { PDFDarkMode } from "./pdf_dark_mode.js";
 import { PDFDocumentProperties } from "./pdf_document_properties.js";
 import { PDFFindBar } from "./pdf_find_bar.js";
 import { PDFFindController } from "./pdf_find_controller.js";
@@ -261,15 +262,6 @@ const PDFViewerApplication = {
       AppOptions.set("externalLinkTarget", LinkTarget.TOP);
     }
     await this._initializeViewerComponents();
-
-    // Check dark mode option.
-    let inDarkMode = localStorage.getItem("pdfjs.dark_mode") || "false";
-    if (inDarkMode === "true") {
-      let cssElement = document.createElement("style");
-      cssElement.id = "pdfjs-darkmode-style";
-      cssElement.textContent = ".textLayer { background: black; }";
-      document.head.appendChild(cssElement);
-    }
 
     // Bind the various event handlers *after* the viewer has been
     // initialized, to prevent errors if an event arrives too soon.
@@ -543,6 +535,8 @@ const PDFViewerApplication = {
       eventBus,
       this.l10n
     );
+
+    this.darkMode = new PDFDarkMode(appConfig.toolbar.darkModeButton, eventBus);
   },
 
   run(config) {
@@ -1759,7 +1753,6 @@ const PDFViewerApplication = {
     eventBus._on("sidebarviewchanged", webViewerSidebarViewChanged);
     eventBus._on("pagemode", webViewerPageMode);
     eventBus._on("namedaction", webViewerNamedAction);
-    eventBus._on("darkmode", webViewerDarkMode);
     eventBus._on("presentationmodechanged", webViewerPresentationModeChanged);
     eventBus._on("presentationmode", webViewerPresentationMode);
     eventBus._on("print", webViewerPrint);
@@ -1847,7 +1840,6 @@ const PDFViewerApplication = {
     eventBus._off("sidebarviewchanged", webViewerSidebarViewChanged);
     eventBus._off("pagemode", webViewerPageMode);
     eventBus._off("namedaction", webViewerNamedAction);
-    eventBus._off("darkmode", webViewerDarkMode);
     eventBus._off("presentationmodechanged", webViewerPresentationModeChanged);
     eventBus._off("presentationmode", webViewerPresentationMode);
     eventBus._off("print", webViewerPrint);
@@ -2407,20 +2399,6 @@ if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
   };
 }
 
-function webViewerDarkMode() {
-  let inDarkMode = localStorage.getItem("pdfjs.dark_mode") || "false";
-  if (inDarkMode === "false") {
-    let cssElement = document.createElement("style");
-    cssElement.id = "pdfjs-darkmode-style";
-    cssElement.textContent = ".textLayer { background: black; }";
-    document.head.appendChild(cssElement);
-    localStorage.setItem("pdfjs.dark_mode", "true");
-  } else {
-    let cssElement = document.getElementById("pdfjs-darkmode-style");
-    if (cssElement) cssElement.remove();
-    localStorage.setItem("pdfjs.dark_mode", "false");
-  }
-}
 function webViewerPresentationMode() {
   PDFViewerApplication.requestPresentationMode();
 }
