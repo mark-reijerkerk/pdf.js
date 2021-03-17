@@ -67,7 +67,8 @@
   --toolbarButton-pageDown-icon: url(images/toolbarButton-pageDown.svg);
   --toolbarButton-zoomOut-icon: url(images/toolbarButton-zoomOut.svg);
   --toolbarButton-zoomIn-icon: url(images/toolbarButton-zoomIn.svg);
-  --toolbarButton-darkMode-icon: url(images/toolbarButton-darkMode.svg);
+  --toolbarButton-darkMode-dark-icon: url(images/toolbarButton-darkMode-dark.svg);
+  --toolbarButton-darkMode-light-icon: url(images/toolbarButton-darkMode-light.svg);
   --toolbarButton-presentationMode-icon: url(images/toolbarButton-presentationMode.svg);
   --toolbarButton-print-icon: url(images/toolbarButton-print.svg);
   --toolbarButton-openFile-icon: url(images/toolbarButton-openFile.svg);
@@ -140,7 +141,8 @@
     --toolbarButton-pageDown-icon: url(images/toolbarButton-pageDown-dark.svg);
     --toolbarButton-zoomOut-icon: url(images/toolbarButton-zoomOut-dark.svg);
     --toolbarButton-zoomIn-icon: url(images/toolbarButton-zoomIn-dark.svg);
-    --toolbarButton-darkMode-icon: url(images/toolbarButton-darkMode-dark.svg);
+    --toolbarButton-darkMode-dark-icon: url(images/toolbarButton-darkMode-dark-dark.svg);
+    --toolbarButton-darkMode-light-icon: url(images/toolbarButton-darkMode-light-dark.svg);
     --toolbarButton-presentationMode-icon: url(images/toolbarButton-presentationMode-dark.svg);
     --toolbarButton-print-icon: url(images/toolbarButton-print-dark.svg);
     --toolbarButton-openFile-icon: url(images/toolbarButton-openFile-dark.svg);
@@ -1060,11 +1062,6 @@ html[dir="rtl"] .toolbarButton.pageDown::before {
 
 .toolbarButton.zoomIn::before {
   content: var(--toolbarButton-zoomIn-icon);
-}
-
-.toolbarButton.darkMode::before,
-.secondaryToolbarButton.darkMode::before {
-  content: var(--toolbarButton-darkMode-icon);
 }
 
 .toolbarButton.presentationMode::before,
