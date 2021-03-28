@@ -536,7 +536,11 @@ const PDFViewerApplication = {
       this.l10n
     );
 
-    this.darkMode = new PDFDarkMode(appConfig.toolbar.darkModeButton, eventBus);
+    this.darkMode = new PDFDarkMode(
+      appConfig.toolbar.darkModeButton,
+      eventBus,
+      this.l10n
+    );
   },
 
   run(config) {

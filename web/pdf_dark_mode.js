@@ -64,6 +64,10 @@ const STYLE_ELEMENT_CONTENT_DARK = `
 
 /**
  * @type {Object} modes supported.
+ *
+ * @property {String} AUTO auto mode.
+ * @property {String} LIGHT light/original mode.
+ * @property {String} DARK dark mode.
  */
 const MODES = Object.freeze({
   AUTO: "auto",
@@ -72,20 +76,39 @@ const MODES = Object.freeze({
 });
 
 /**
+ * @typedef {Object} ModeConfig mode config object.
+ *
+ * @property {String} style mode style sheet
+ * @property {String} next next mode to switch to when toggle button clicked
+ * @property {Number} l10nCode code used for localization, see WebL10n plural()
+ * @property {String} l10nFallback localization text fallback
+ */
+
+/**
  * @type {Object} mode configurations.
+ *
+ * @property {ModeConfig} auto auto mode config
+ * @property {ModeConfig} light light/original mode config
+ * @property {ModeConfig} dark dark mode config
  */
 const MODE_CONFIGS = Object.freeze({
   auto: {
     style: STYLE_ELEMENT_CONTENT_AUTO,
     next: MODES.LIGHT,
+    l10nCode: 0,
+    l10nFallback: "Auto(Follow OS Settings)",
   },
   light: {
     style: STYLE_ELEMENT_CONTENT_LIGHT,
     next: MODES.DARK,
+    l10nCode: 1,
+    l10nFallback: "Original",
   },
   dark: {
     style: STYLE_ELEMENT_CONTENT_DARK,
     next: MODES.AUTO,
+    l10nCode: 2,
+    l10nFallback: "Dark",
   },
 });
 
@@ -93,17 +116,21 @@ const MODE_CONFIGS = Object.freeze({
  * PDF dark mode manager.
  *
  * @property {HTMLButtonElement} button toggle button
- *
  * @property {EventBus} eventBus event bus
+ * @property {L10n} l10n localization tool
+ * @property {HTMLStyleElement} styleElement dark mode style element
  */
 class PDFDarkMode {
   /**
    * @param {HTMLButtonElement} button toggle button
    * @param {EventBus} eventBus event bus
+   * @param {L10n} l10n localization tool
    */
-  constructor(button, eventBus) {
+  constructor(button, eventBus, l10n) {
     this.button = button;
+    this.buttonAltText = button.children[0];
     this.eventBus = eventBus;
+    this.l10n = l10n;
 
     // Create dark mode style element.
     this.styleElement = document.createElement("style");
@@ -132,8 +159,30 @@ class PDFDarkMode {
    * @see MODES
    */
   switchTo(mode) {
+    // Save mode setting.
     localStorage.setItem(STORAGE_KEY, mode);
-    this.styleElement.textContent = MODE_CONFIGS[mode].style;
+
+    // Update style.
+    const config = MODE_CONFIGS[mode];
+    this.styleElement.textContent = config.style;
+
+    // Localize button tool tip and alt text.
+    const buttonTitle = this.l10n.get(
+      "dark_mode_title",
+      { mode: config.l10nCode },
+      config.l10nFallback
+    );
+
+    const buttonAltText = this.l10n.get(
+      "dark_mode_label",
+      { mode: config.l10nCode },
+      config.l10nFallback
+    );
+
+    Promise.all([buttonTitle, buttonAltText]).then(messages => {
+      this.button.title = messages[0];
+      this.buttonAltText.textContent = messages[1];
+    });
   }
 }
 
