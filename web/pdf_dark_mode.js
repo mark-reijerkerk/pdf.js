@@ -1,4 +1,8 @@
 /**
+ * START BLOCK: Constant Definitions
+ */
+
+/**
  * @type {String} localStorage key of dark mode setting.
  */
 const STORAGE_KEY = "pdfjs.dark_mode";
@@ -9,49 +13,81 @@ const STORAGE_KEY = "pdfjs.dark_mode";
 const STYLE_ELEMENT_ID = "pdfjs-dark-mode-style";
 
 /**
- * @type {String} dark mode style sheet.
+ * @type {String} Style sheet for implementing dark mode.
  */
-const STYLE_ELEMENT_CONTENT_DARK = `
-.thumbnailImage, .pdfViewer .page {
-  filter: brightness(0.85) grayscale(0.15) invert(1.0) hue-rotate(0.5turn);
-  border-image: none;
-  box-shadow: none;
-}
-
-.toolbarButton.darkMode::before,
-.secondaryToolbarButton.darkMode::before {
-  content: var(--toolbarButton-darkMode-dark-icon);
-  transform: rotate(-0.1turn);
-}
-`;
-
-/**
- * @type {String} light mode style sheet.
- */
-const STYLE_ELEMENT_CONTENT_LIGHT = `
-.toolbarButton.darkMode::before,
-.secondaryToolbarButton.darkMode::before {
-  content: var(--toolbarButton-darkMode-light-icon);
-}
+const DARK_STYLE = `
+  .thumbnailImage, .pdfViewer .page {
+    filter: brightness(0.85) grayscale(0.15) invert(1.0) hue-rotate(0.5turn);
+    border-image: none;
+    box-shadow: none;
+  }
 `;
 
 /**
  * @type {String} auto mode style sheet.
  */
 const STYLE_ELEMENT_CONTENT_AUTO = `
-@media (prefers-color-scheme: dark) {
-  .thumbnailImage, .pdfViewer .page {
-    filter: brightness(0.85) grayscale(0.15) invert(1.0) hue-rotate(0.5turn);
-    border-image: none;
-    box-shadow: none;
-  }
-}
+ @media (prefers-color-scheme: dark) {${DARK_STYLE}}
 
-.toolbarButton.darkMode::before,
-.secondaryToolbarButton.darkMode::before {
-  content: var(--toolbarButton-darkMode-auto-icon);
-}
+ .toolbarButton.darkMode::before,
+ .secondaryToolbarButton.darkMode::before {
+   content: var(--toolbarButton-darkMode-auto-icon);
+ }
 `;
+
+/**
+ * @type {String} light mode style sheet.
+ */
+const STYLE_ELEMENT_CONTENT_LIGHT = `
+ .toolbarButton.darkMode::before,
+ .secondaryToolbarButton.darkMode::before {
+   content: var(--toolbarButton-darkMode-light-icon);
+ }
+`;
+
+/**
+ * @type {String} dark mode style sheet.
+ */
+const STYLE_ELEMENT_CONTENT_DARK = `
+  ${DARK_STYLE}
+
+  .toolbarButton.darkMode::before,
+  .secondaryToolbarButton.darkMode::before {
+    content: var(--toolbarButton-darkMode-dark-icon);
+    transform: rotate(-0.1turn);
+  }
+`;
+
+/**
+ * END BLOCK: Constant Definitions
+ */
+
+/**
+ * @type {Object} modes supported.
+ */
+const MODES = Object.freeze({
+  AUTO: "auto",
+  LIGHT: "light",
+  DARK: "dark",
+});
+
+/**
+ * @type {Object} mode configurations.
+ */
+const MODE_CONFIGS = Object.freeze({
+  auto: {
+    style: STYLE_ELEMENT_CONTENT_AUTO,
+    next: MODES.LIGHT,
+  },
+  light: {
+    style: STYLE_ELEMENT_CONTENT_LIGHT,
+    next: MODES.DARK,
+  },
+  dark: {
+    style: STYLE_ELEMENT_CONTENT_DARK,
+    next: MODES.AUTO,
+  },
+});
 
 /**
  * PDF dark mode manager.
@@ -75,52 +111,29 @@ class PDFDarkMode {
     this.styleElement.id = STYLE_ELEMENT_ID;
 
     // Check dark mode option.
-    const darkModeOption = localStorage.getItem(STORAGE_KEY) || "auto";
-    switch (darkModeOption) {
-      case "dark":
-        this.enable();
-        break;
-      case "light":
-        this.disable();
-        break;
-      case "auto":
-      default:
-        this.auto();
-        break;
-    }
+    const mode = localStorage.getItem(STORAGE_KEY) || MODES.AUTO;
+    this.switchTo(mode);
 
     this.eventBus.on("darkmode", this.toggle.bind(this));
   }
 
+  /**
+   * Switch to next mode.
+   */
   toggle() {
-    const darkModeOption = localStorage.getItem(STORAGE_KEY) || "auto";
-    switch (darkModeOption) {
-      case "auto":
-        this.disable();
-        localStorage.setItem(STORAGE_KEY, "light");
-        break;
-      case "light":
-        this.enable();
-        localStorage.setItem(STORAGE_KEY, "dark");
-        break;
-      case "dark":
-      default:
-        this.auto();
-        localStorage.setItem(STORAGE_KEY, "auto");
-        break;
-    }
+    const curr = localStorage.getItem(STORAGE_KEY) || MODES.DARK;
+    this.switchTo(MODE_CONFIGS[curr].next);
   }
 
-  auto() {
-    this.styleElement.textContent = STYLE_ELEMENT_CONTENT_AUTO;
-  }
-
-  enable() {
-    this.styleElement.textContent = STYLE_ELEMENT_CONTENT_DARK;
-  }
-
-  disable() {
-    this.styleElement.textContent = STYLE_ELEMENT_CONTENT_LIGHT;
+  /**
+   * Switch to given mode.
+   *
+   * @param {String} mode mode to switch to, options listed in MODES.
+   * @see MODES
+   */
+  switchTo(mode) {
+    localStorage.setItem(STORAGE_KEY, mode);
+    this.styleElement.textContent = MODE_CONFIGS[mode].style;
   }
 }
 
