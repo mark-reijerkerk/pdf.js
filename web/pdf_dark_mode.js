@@ -12,8 +12,10 @@ const STYLE_ELEMENT_ID = "pdfjs-dark-mode-style";
  * @type {String} dark mode style sheet.
  */
 const STYLE_ELEMENT_CONTENT_DARK = `
-.textLayer {
-  background: black;
+.thumbnailImage, .pdfViewer .page {
+  filter: brightness(0.85) grayscale(0.15) invert(1.0) hue-rotate(0.5turn);
+  border-image: none;
+  box-shadow: none;
 }
 
 .toolbarButton.darkMode::before,
@@ -27,10 +29,6 @@ const STYLE_ELEMENT_CONTENT_DARK = `
  * @type {String} light mode style sheet.
  */
 const STYLE_ELEMENT_CONTENT_LIGHT = `
-.textLayer {
-  background: white;
-}
-
 .toolbarButton.darkMode::before,
 .secondaryToolbarButton.darkMode::before {
   content: var(--toolbarButton-darkMode-light-icon);
