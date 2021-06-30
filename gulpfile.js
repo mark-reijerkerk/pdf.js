@@ -78,7 +78,15 @@ const config = JSON.parse(fs.readFileSync(CONFIG_FILE).toString());
 const GENERIC_ET_DIR = BUILD_DIR + "generic_et/";
 
 // Locales used in Edge Translate
-const EDGE_TRANSLATE_LOCALES = ["en-CA", "en-GB", "en-US", "ru", "zh-CN", "zh-TW", "ja"];
+const EDGE_TRANSLATE_LOCALES = [
+  "en-CA",
+  "en-GB",
+  "en-US",
+  "ru",
+  "zh-CN",
+  "zh-TW",
+  "ja",
+];
 
 // Default Autoprefixer config used for generic, components, minified-pre
 const AUTOPREFIXER_CONFIG = {
@@ -850,15 +858,15 @@ function buildGeneric(defines, dir) {
 function buildGenericET(defines, dir) {
   rimraf.sync(dir);
 
-  var locales = "";
+  let locales = "";
   EDGE_TRANSLATE_LOCALES.forEach(locale => {
     locales +=
-        "[" +
-        locale +
-        "]\n" +
-        "@import url(" +
-        locale +
-        "/viewer.properties)\n\n";
+      "[" +
+      locale +
+      "]\n" +
+      "@import url(" +
+      locale +
+      "/viewer.properties)\n\n";
   });
 
   return merge([
@@ -866,14 +874,19 @@ function buildGenericET(defines, dir) {
     createWorkerBundle(defines).pipe(gulp.dest(dir + "web/lib")),
     createSandboxBundle(defines).pipe(gulp.dest(dir + "web/lib")),
     createWebBundle(defines, {
-      defaultPreferencesDir: "generic/"
+      defaultPreferencesDir: "generic/",
     }).pipe(gulp.dest(dir + "web")),
     gulp.src(COMMON_WEB_FILES, { base: "web/" }).pipe(gulp.dest(dir + "web")),
     gulp.src("LICENSE").pipe(gulp.dest(dir)),
     gulp
-      .src("web/locale/@(" + EDGE_TRANSLATE_LOCALES.join("|") + ")/viewer.properties", {
-        base: "web/",
-      })
+      .src(
+        "web/locale/@(" +
+          EDGE_TRANSLATE_LOCALES.join("|") +
+          ")/viewer.properties",
+        {
+          base: "web/",
+        }
+      )
       .pipe(gulp.dest(dir + "web")),
     createStringSource("locale.properties", locales).pipe(
       gulp.dest(dir + "web/locale")
@@ -911,8 +924,7 @@ gulp.task(
   )
 );
 
-// Builds the generic production viewer that is only compatible with up-to-date
-// HTML5 browsers, which implement modern ECMAScript features for Edge Translate.
+// Builds the generic production viewer for Edge Translate.
 gulp.task(
   "generic-et",
   gulp.series(
