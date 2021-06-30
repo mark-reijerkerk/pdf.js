@@ -16,11 +16,11 @@
 import {
   getVisibleElements,
   isValidRotation,
-  NullL10n,
   scrollIntoView,
   watchScroll,
 } from "./ui_utils.js";
-import { PDFThumbnailView } from "./pdf_thumbnail_view.js";
+import { PDFThumbnailView, TempImageFactory } from "./pdf_thumbnail_view.js";
+import { RenderingStates } from "./pdf_rendering_queue.js";
 
 const THUMBNAIL_SCROLL_MARGIN = -19;
 const THUMBNAIL_SELECTED_CLASS = "selected";
@@ -44,13 +44,7 @@ class PDFThumbnailViewer {
   /**
    * @param {PDFThumbnailViewerOptions} options
    */
-  constructor({
-    container,
-    eventBus,
-    linkService,
-    renderingQueue,
-    l10n = NullL10n,
-  }) {
+  constructor({ container, eventBus, linkService, renderingQueue, l10n }) {
     this.container = container;
     this.linkService = linkService;
     this.renderingQueue = renderingQueue;
@@ -81,7 +75,10 @@ class PDFThumbnailViewer {
    * @private
    */
   _getVisibleThumbs() {
-    return getVisibleElements(this.container, this._thumbnails);
+    return getVisibleElements({
+      scrollEl: this.container,
+      views: this._thumbnails,
+    });
   }
 
   scrollThumbnailIntoView(pageNumber) {
@@ -153,7 +150,15 @@ class PDFThumbnailViewer {
   }
 
   cleanup() {
-    PDFThumbnailView.cleanup();
+    for (let i = 0, ii = this._thumbnails.length; i < ii; i++) {
+      if (
+        this._thumbnails[i] &&
+        this._thumbnails[i].renderingState !== RenderingStates.FINISHED
+      ) {
+        this._thumbnails[i].reset();
+      }
+    }
+    TempImageFactory.destroyCanvas();
   }
 
   /**
@@ -204,7 +209,6 @@ class PDFThumbnailViewer {
             linkService: this.linkService,
             renderingQueue: this.renderingQueue,
             checkSetImageDisabled,
-            disableCanvasToImageConversion: false,
             l10n: this.l10n,
           });
           this._thumbnails.push(thumbnail);
@@ -256,8 +260,7 @@ class PDFThumbnailViewer {
     }
     // Update all the `PDFThumbnailView` instances.
     for (let i = 0, ii = this._thumbnails.length; i < ii; i++) {
-      const label = this._pageLabels && this._pageLabels[i];
-      this._thumbnails[i].setPageLabel(label);
+      this._thumbnails[i].setPageLabel(this._pageLabels?.[i] ?? null);
     }
   }
 

@@ -18,7 +18,6 @@ import {
   CSS_UNITS,
   DEFAULT_SCALE,
   getOutputScale,
-  NullL10n,
   RendererType,
   roundToDivide,
   TextLayerMode,
@@ -28,6 +27,7 @@ import {
   RenderingCancelledException,
   SVGGraphics,
 } from "pdfjs-lib";
+import { NullL10n } from "./l10n_utils.js";
 import { RenderingStates } from "./pdf_rendering_queue.js";
 import { viewerCompatibilityParams } from "./viewer_compatibility.js";
 
@@ -38,8 +38,6 @@ import { viewerCompatibilityParams } from "./viewer_compatibility.js";
  * @property {number} id - The page unique ID (normally its number).
  * @property {number} scale - The page scale display.
  * @property {PageViewport} defaultViewport - The page viewport.
- * @property {AnnotationStorage} [annotationStorage] - Storage for annotation
- *   data in forms. The default value is `null`.
  * @property {Promise<OptionalContentConfig>} [optionalContentConfigPromise] -
  *   A promise that is resolved with an {@link OptionalContentConfig} instance.
  *   The default value is `null`.
@@ -50,13 +48,13 @@ import { viewerCompatibilityParams } from "./viewer_compatibility.js";
  *   behaviour is enabled. The constants from {TextLayerMode} should be used.
  *   The default value is `TextLayerMode.ENABLE`.
  * @property {IPDFAnnotationLayerFactory} annotationLayerFactory
+ * @property {IPDFXfaLayerFactory} xfaLayerFactory
+ * @property {IPDFStructTreeLayerFactory} structTreeLayerFactory
  * @property {string} [imageResourcesPath] - Path for image resources, mainly
  *   for annotation icons. Include trailing slash.
  * @property {boolean} renderInteractiveForms - Turns on rendering of
  *   interactive form elements. The default value is `true`.
  * @property {string} renderer - 'canvas' or 'svg'. The default is 'canvas'.
- * @property {boolean} [enableWebGL] - Enables WebGL accelerated rendering for
- *   some operations. The default value is `false`.
  * @property {boolean} [useOnlyCssZoom] - Enables CSS only zooming. The default
  *   value is `false`.
  * @property {number} [maxCanvasPixels] - The maximum supported canvas size in
@@ -87,7 +85,6 @@ class PDFPageView {
     this.scale = options.scale || DEFAULT_SCALE;
     this.viewport = defaultViewport;
     this.pdfPageRotate = defaultViewport.rotation;
-    this._annotationStorage = options.annotationStorage || null;
     this._optionalContentConfigPromise =
       options.optionalContentConfigPromise || null;
     this.hasRestrictedScaling = false;
@@ -95,10 +92,7 @@ class PDFPageView {
       ? options.textLayerMode
       : TextLayerMode.ENABLE;
     this.imageResourcesPath = options.imageResourcesPath || "";
-    this.renderInteractiveForms =
-      typeof options.renderInteractiveForms === "boolean"
-        ? options.renderInteractiveForms
-        : true;
+    this.renderInteractiveForms = options.renderInteractiveForms !== false;
     this.useOnlyCssZoom = options.useOnlyCssZoom || false;
     this.maxCanvasPixels = options.maxCanvasPixels || MAX_CANVAS_PIXELS;
 
@@ -106,8 +100,9 @@ class PDFPageView {
     this.renderingQueue = options.renderingQueue;
     this.textLayerFactory = options.textLayerFactory;
     this.annotationLayerFactory = options.annotationLayerFactory;
+    this.xfaLayerFactory = options.xfaLayerFactory;
+    this.structTreeLayerFactory = options.structTreeLayerFactory;
     this.renderer = options.renderer || RendererType.CANVAS;
-    this.enableWebGL = options.enableWebGL || false;
     this.l10n = options.l10n || NullL10n;
 
     this.paintTask = null;
@@ -119,12 +114,18 @@ class PDFPageView {
     this.annotationLayer = null;
     this.textLayer = null;
     this.zoomLayer = null;
+    this.xfaLayer = null;
+    this.structTreeLayer = null;
 
     const div = document.createElement("div");
     div.className = "page";
     div.style.width = Math.floor(this.viewport.width) + "px";
     div.style.height = Math.floor(this.viewport.height) + "px";
     div.setAttribute("data-page-number", this.id);
+    div.setAttribute("role", "region");
+    this.l10n.get("page_landmark", { page: this.id }).then(msg => {
+      div.setAttribute("aria-label", msg);
+    });
     this.div = div;
 
     container.appendChild(div);
@@ -170,6 +171,24 @@ class PDFPageView {
   /**
    * @private
    */
+  async _renderXfaLayer() {
+    let error = null;
+    try {
+      await this.xfaLayer.render(this.viewport, "display");
+    } catch (ex) {
+      error = ex;
+    } finally {
+      this.eventBus.dispatch("xfalayerrendered", {
+        source: this,
+        pageNumber: this.id,
+        error,
+      });
+    }
+  }
+
+  /**
+   * @private
+   */
   _resetZoomLayer(removeFromDOM = false) {
     if (!this.zoomLayer) {
       return;
@@ -199,11 +218,15 @@ class PDFPageView {
     const childNodes = div.childNodes;
     const currentZoomLayerNode = (keepZoomLayer && this.zoomLayer) || null;
     const currentAnnotationNode =
-      (keepAnnotations && this.annotationLayer && this.annotationLayer.div) ||
-      null;
+      (keepAnnotations && this.annotationLayer?.div) || null;
+    const currentXfaLayerNode = this.xfaLayer?.div || null;
     for (let i = childNodes.length - 1; i >= 0; i--) {
       const node = childNodes[i];
-      if (currentZoomLayerNode === node || currentAnnotationNode === node) {
+      if (
+        currentZoomLayerNode === node ||
+        currentAnnotationNode === node ||
+        currentXfaLayerNode === node
+      ) {
         continue;
       }
       div.removeChild(node);
@@ -237,6 +260,10 @@ class PDFPageView {
 
     this.loadingIconDiv = document.createElement("div");
     this.loadingIconDiv.className = "loadingIcon";
+    this.loadingIconDiv.setAttribute("role", "img");
+    this.l10n.get("loading").then(msg => {
+      this.loadingIconDiv?.setAttribute("aria-label", msg);
+    });
     div.appendChild(this.loadingIconDiv);
   }
 
@@ -297,7 +324,7 @@ class PDFPageView {
         });
         return;
       }
-      if (!this.zoomLayer && !this.canvas.hasAttribute("hidden")) {
+      if (!this.zoomLayer && !this.canvas.hidden) {
         this.zoomLayer = this.canvas.parentNode;
         this.zoomLayer.style.position = "absolute";
       }
@@ -327,6 +354,10 @@ class PDFPageView {
       this.annotationLayer.cancel();
       this.annotationLayer = null;
     }
+    if (this._onTextLayerRendered) {
+      this.eventBus._off("textlayerrendered", this._onTextLayerRendered);
+      this._onTextLayerRendered = null;
+    }
   }
 
   cssTransform(target, redrawAnnotations = false) {
@@ -334,10 +365,14 @@ class PDFPageView {
     const width = this.viewport.width;
     const height = this.viewport.height;
     const div = this.div;
-    target.style.width = target.parentNode.style.width = div.style.width =
-      Math.floor(width) + "px";
-    target.style.height = target.parentNode.style.height = div.style.height =
-      Math.floor(height) + "px";
+    target.style.width =
+      target.parentNode.style.width =
+      div.style.width =
+        Math.floor(width) + "px";
+    target.style.height =
+      target.parentNode.style.height =
+      div.style.height =
+        Math.floor(height) + "px";
     // The canvas may have been originally rotated; rotate relative to that.
     const relativeRotation =
       this.viewport.rotation - this.paintedViewportMap.get(target).rotation;
@@ -397,6 +432,10 @@ class PDFPageView {
     if (redrawAnnotations && this.annotationLayer) {
       this._renderAnnotationLayer();
     }
+
+    if (this.xfaLayer) {
+      this._renderXfaLayer();
+    }
   }
 
   get width() {
@@ -437,7 +476,7 @@ class PDFPageView {
     canvasWrapper.style.height = div.style.height;
     canvasWrapper.classList.add("canvasWrapper");
 
-    if (this.annotationLayer && this.annotationLayer.div) {
+    if (this.annotationLayer?.div) {
       // The annotation layer needs to stay on top.
       div.insertBefore(canvasWrapper, this.annotationLayer.div);
     } else {
@@ -450,7 +489,7 @@ class PDFPageView {
       textLayerDiv.className = "textLayer";
       textLayerDiv.style.width = canvasWrapper.style.width;
       textLayerDiv.style.height = canvasWrapper.style.height;
-      if (this.annotationLayer && this.annotationLayer.div) {
+      if (this.annotationLayer?.div) {
         // The annotation layer needs to stay on top.
         div.insertBefore(textLayerDiv, this.annotationLayer.div);
       } else {
@@ -525,11 +564,12 @@ class PDFPageView {
     this.paintTask = paintTask;
 
     const resultPromise = paintTask.promise.then(
-      function () {
-        return finishPaintTask(null).then(function () {
+      () => {
+        return finishPaintTask(null).then(() => {
           if (textLayer) {
             const readableStream = pdfPage.streamTextContent({
               normalizeWhitespace: true,
+              includeMarkedContent: true,
             });
             textLayer.setTextContentStream(readableStream);
             textLayer.render();
@@ -543,17 +583,65 @@ class PDFPageView {
 
     if (this.annotationLayerFactory) {
       if (!this.annotationLayer) {
-        this.annotationLayer = this.annotationLayerFactory.createAnnotationLayerBuilder(
-          div,
-          pdfPage,
-          this._annotationStorage,
-          this.imageResourcesPath,
-          this.renderInteractiveForms,
-          this.l10n
-        );
+        this.annotationLayer =
+          this.annotationLayerFactory.createAnnotationLayerBuilder(
+            div,
+            pdfPage,
+            /* annotationStorage = */ null,
+            this.imageResourcesPath,
+            this.renderInteractiveForms,
+            this.l10n,
+            /* enableScripting */ null,
+            /* hasJSActionsPromise = */ null,
+            /* mouseState = */ null
+          );
       }
       this._renderAnnotationLayer();
     }
+
+    if (this.xfaLayerFactory) {
+      if (!this.xfaLayer) {
+        this.xfaLayer = this.xfaLayerFactory.createXfaLayerBuilder(
+          div,
+          pdfPage,
+          /* annotationStorage = */ null
+        );
+      }
+      this._renderXfaLayer();
+    }
+
+    // The structure tree is currently only supported when the text layer is
+    // enabled and a canvas is used for rendering.
+    if (this.structTreeLayerFactory && this.textLayer && this.canvas) {
+      // The structure tree must be generated after the text layer for the
+      // aria-owns to work.
+      this._onTextLayerRendered = event => {
+        if (event.pageNumber !== this.id) {
+          return;
+        }
+        this.eventBus._off("textlayerrendered", this._onTextLayerRendered);
+        this._onTextLayerRendered = null;
+
+        if (!this.canvas) {
+          return; // The canvas was removed, prevent errors below.
+        }
+        this.pdfPage.getStructTree().then(tree => {
+          if (!tree) {
+            return;
+          }
+          if (!this.canvas) {
+            return; // The canvas was removed, prevent errors below.
+          }
+          const treeDom = this.structTreeLayer.render(tree);
+          treeDom.classList.add("structTree");
+          this.canvas.appendChild(treeDom);
+        });
+      };
+      this.eventBus._on("textlayerrendered", this._onTextLayerRendered);
+      this.structTreeLayer =
+        this.structTreeLayerFactory.createStructTreeLayerBuilder(pdfPage);
+    }
+
     div.setAttribute("data-loaded", true);
 
     this.eventBus.dispatch("pagerender", {
@@ -577,19 +665,14 @@ class PDFPageView {
 
     const viewport = this.viewport;
     const canvas = document.createElement("canvas");
-    this.l10n
-      .get("page_canvas", { page: this.id }, "Page {{page}}")
-      .then(msg => {
-        canvas.setAttribute("aria-label", msg);
-      });
 
     // Keep the canvas hidden until the first draw callback, or until drawing
     // is complete when `!this.renderingQueue`, to prevent black flickering.
-    canvas.setAttribute("hidden", "hidden");
+    canvas.hidden = true;
     let isCanvasHidden = true;
     const showCanvas = function () {
       if (isCanvasHidden) {
-        canvas.removeAttribute("hidden");
+        canvas.hidden = false;
         isCanvasHidden = false;
       }
     };
@@ -647,7 +730,6 @@ class PDFPageView {
       canvasContext: ctx,
       transform,
       viewport: this.viewport,
-      enableWebGL: this.enableWebGL,
       renderInteractiveForms: this.renderInteractiveForms,
       optionalContentConfigPromise: this._optionalContentConfigPromise,
     };
@@ -702,7 +784,11 @@ class PDFPageView {
     const actualSizeViewport = this.viewport.clone({ scale: CSS_UNITS });
     const promise = pdfPage.getOperatorList().then(opList => {
       ensureNotCancelled();
-      const svgGfx = new SVGGraphics(pdfPage.commonObjs, pdfPage.objs);
+      const svgGfx = new SVGGraphics(
+        pdfPage.commonObjs,
+        pdfPage.objs,
+        /* forceDataSchema = */ viewerCompatibilityParams.disableCreateObjectURL
+      );
       return svgGfx.getSVG(opList, actualSizeViewport).then(svg => {
         ensureNotCancelled();
         this.svg = svg;

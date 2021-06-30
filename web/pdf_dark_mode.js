@@ -31,7 +31,8 @@ const STYLE_ELEMENT_CONTENT_AUTO = `
 
  .toolbarButton.darkMode::before,
  .secondaryToolbarButton.darkMode::before {
-   content: var(--toolbarButton-darkMode-auto-icon);
+  -webkit-mask-image: var(--toolbarButton-darkMode-auto-icon);
+  mask-image: var(--toolbarButton-darkMode-auto-icon);
  }
 `;
 
@@ -41,7 +42,8 @@ const STYLE_ELEMENT_CONTENT_AUTO = `
 const STYLE_ELEMENT_CONTENT_LIGHT = `
  .toolbarButton.darkMode::before,
  .secondaryToolbarButton.darkMode::before {
-   content: var(--toolbarButton-darkMode-light-icon);
+  -webkit-mask-image: var(--toolbarButton-darkMode-light-icon);
+  mask-image: var(--toolbarButton-darkMode-light-icon);
  }
 `;
 
@@ -53,7 +55,8 @@ const STYLE_ELEMENT_CONTENT_DARK = `
 
   .toolbarButton.darkMode::before,
   .secondaryToolbarButton.darkMode::before {
-    content: var(--toolbarButton-darkMode-dark-icon);
+    -webkit-mask-image: var(--toolbarButton-darkMode-dark-icon);
+    mask-image: var(--toolbarButton-darkMode-dark-icon);
     transform: rotate(-0.1turn);
   }
 `;

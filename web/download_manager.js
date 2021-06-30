@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-import { createObjectURL, createValidAbsoluteUrl } from "pdfjs-lib";
+import { createObjectURL, createValidAbsoluteUrl, isPdfFile } from "pdfjs-lib";
 import { viewerCompatibilityParams } from "./viewer_compatibility.js";
 
 if (typeof PDFJSDev !== "undefined" && !PDFJSDev.test("CHROME || GENERIC")) {
@@ -43,6 +43,10 @@ function download(blobUrl, filename) {
 }
 
 class DownloadManager {
+  constructor() {
+    this._openBlobUrls = new WeakMap();
+  }
+
   downloadUrl(url, filename) {
     if (!createValidAbsoluteUrl(url, "http://example.com")) {
       return; // restricted/invalid URL
@@ -60,6 +64,49 @@ class DownloadManager {
   }
 
   /**
+   * @returns {boolean} Indicating if the data was opened.
+   */
+  openOrDownloadData(element, data, filename) {
+    const isPdfData = isPdfFile(filename);
+    const contentType = isPdfData ? "application/pdf" : "";
+
+    if (isPdfData && !viewerCompatibilityParams.disableCreateObjectURL) {
+      let blobUrl = this._openBlobUrls.get(element);
+      if (!blobUrl) {
+        blobUrl = URL.createObjectURL(new Blob([data], { type: contentType }));
+        this._openBlobUrls.set(element, blobUrl);
+      }
+      let viewerUrl;
+      if (typeof PDFJSDev === "undefined" || PDFJSDev.test("GENERIC")) {
+        // The current URL is the viewer, let's use it and append the file.
+        viewerUrl = "?file=" + encodeURIComponent(blobUrl + "#" + filename);
+      } else if (PDFJSDev.test("CHROME")) {
+        // In the Chrome extension, the URL is rewritten using the history API
+        // in viewer.js, so an absolute URL must be generated.
+        viewerUrl =
+          // eslint-disable-next-line no-undef
+          chrome.runtime.getURL("/content/web/viewer.html") +
+          "?file=" +
+          encodeURIComponent(blobUrl + "#" + filename);
+      }
+
+      try {
+        window.open(viewerUrl);
+        return true;
+      } catch (ex) {
+        console.error(`openOrDownloadData: ${ex}`);
+        // Release the `blobUrl`, since opening it failed, and fallback to
+        // downloading the PDF file.
+        URL.revokeObjectURL(blobUrl);
+        this._openBlobUrls.delete(element);
+      }
+    }
+
+    this.downloadData(data, filename, contentType);
+    return false;
+  }
+
+  /**
    * @param sourceEventType {string} Used to signal what triggered the download.
    *   The version of PDF.js integrated with Firefox uses this to to determine
    *   which dialog to show. "save" triggers "save as" and "download" triggers
@@ -71,7 +118,6 @@ class DownloadManager {
       this.downloadUrl(url, filename);
       return;
     }
-
     const blobUrl = URL.createObjectURL(blob);
     download(blobUrl, filename);
   }

@@ -52,12 +52,6 @@
       ],
       "default": 0
     },
-    "enableWebGL": {
-      "title": "Enable WebGL",
-      "description": "Whether to enable WebGL.",
-      "type": "boolean",
-      "default": false
-    },
     "pdfBugEnabled": {
       "title": "Enable debugging tools",
       "description": "Whether to enable debugging tools.",
@@ -139,19 +133,19 @@
       "description": "Whether to prevent the extension from reporting the extension and browser version to the extension developers.",
       "default": false
     },
-    "renderer": {
-      "type": "string",
-      "enum": [
-        "canvas",
-        "svg"
-      ],
-      "default": "canvas"
-    },
     "renderInteractiveForms": {
       "type": "boolean",
       "default": true
     },
+    "enableScripting": {
+      "type": "boolean",
+      "default": true
+    },
     "enablePermissions": {
+      "type": "boolean",
+      "default": false
+    },
+    "enableXfa": {
       "type": "boolean",
       "default": false
     },
@@ -169,7 +163,7 @@
       "title": "Automatically rotate printed pages",
       "description": "When enabled, landscape pages are rotated when printed.",
       "type": "boolean",
-      "default": false
+      "default": true
     },
     "scrollModeOnLoad": {
       "title": "Scroll mode on load",
@@ -194,6 +188,15 @@
         2
       ],
       "default": -1
+    },
+    "viewerCssTheme": {
+      "type": "integer",
+      "enum": [
+        0,
+        1,
+        2
+      ],
+      "default": 0
     }
   }
 }
