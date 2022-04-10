@@ -54,10 +54,10 @@ describe("find bar", () => {
           const firstA = await highlights[0].boundingBox();
           const secondA = await highlights[1].boundingBox();
           // Subtract the page offset from the text bounding boxes;
-          firstA.x = firstA.x - pageBox.x;
-          firstA.y = firstA.y - pageBox.y;
-          secondA.x = secondA.x - pageBox.x;
-          secondA.y = secondA.y - pageBox.y;
+          firstA.x -= pageBox.x;
+          firstA.y -= pageBox.y;
+          secondA.x -= pageBox.x;
+          secondA.y -= pageBox.y;
           // They should be on the same line.
           expect(firstA.y).withContext(`In ${browserName}`).toEqual(secondA.y);
           const fontSize = 26.66; // From the PDF.
@@ -68,6 +68,39 @@ describe("find bar", () => {
           fuzzyMatch(firstA.x, expectedFirstAX, browserName);
           // The second 'A' should be 4 glyphs widths from the first.
           fuzzyMatch(secondA.x, expectedFirstAX + glyphWidth * 4, browserName);
+        })
+      );
+    });
+  });
+  describe("highlight all", () => {
+    let pages;
+
+    beforeAll(async () => {
+      pages = await loadAndWait("xfa_imm5257e.pdf#zoom=100", ".xfaLayer");
+    });
+
+    afterAll(async () => {
+      await closePages(pages);
+    });
+
+    it("must search xfa correctly", async () => {
+      await Promise.all(
+        pages.map(async ([browserName, page]) => {
+          await page.click("#viewFind");
+          await page.waitForSelector("#viewFind", { hidden: false });
+          await page.type("#findInput", "city");
+          await page.waitForSelector("#findInput[data-status='']");
+          await page.waitForSelector(".xfaLayer .highlight");
+          const resultElement = await page.waitForSelector("#findResultsCount");
+          const resultText = await resultElement.evaluate(el => el.textContent);
+          expect(resultText).toEqual("1 of 7 matches");
+          const selectedElement = await page.waitForSelector(
+            ".highlight.selected"
+          );
+          const selectedText = await selectedElement.evaluate(
+            el => el.textContent
+          );
+          expect(selectedText).toEqual("City");
         })
       );
     });

@@ -1,6 +1,6 @@
 {
   "parserOptions": {
-    "ecmaVersion": 2021,
+    "ecmaVersion": 2022,
     "sourceType": "module",
   },
 
@@ -20,7 +20,7 @@
 
   "env": {
     "browser": true,
-    "es2021": true,
+    "es2022": true,
     "worker": true,
     "amd": true,
   },
@@ -28,6 +28,7 @@
   "globals": {
     "PDFJSDev": false,
     "exports": false,
+    "structuredClone": false,
     "SystemJS": false,
   },
 
@@ -46,7 +47,11 @@
     }],
     "unicorn/no-abusive-eslint-disable": "error",
     "unicorn/no-array-push-push": "error",
+    "unicorn/no-new-buffer": "error",
     "unicorn/no-instanceof-array": "error",
+    "unicorn/no-useless-spread": "error",
+    "unicorn/prefer-date-now": "error",
+    "unicorn/prefer-dom-node-remove": "error",
     "unicorn/prefer-string-starts-ends-with": "error",
 
     // Possible errors
@@ -61,22 +66,26 @@
     "no-dupe-keys": "error",
     "no-duplicate-case": "error",
     "no-empty": ["error", { "allowEmptyCatch": true, }],
+    "no-empty-character-class": "error",
     "no-ex-assign": "error",
     "no-extra-boolean-cast": "error",
     "no-func-assign": "error",
     "no-inner-declarations": ["error", "functions"],
     "no-invalid-regexp": "error",
     "no-irregular-whitespace": "error",
+    "no-loss-of-precision": "error",
     "no-obj-calls": "error",
     "no-promise-executor-return": "error",
     "no-regex-spaces": "error",
     "no-setter-return": "error",
     "no-sparse-arrays": "error",
+    "no-template-curly-in-string": "error",
     "no-unexpected-multiline": "error",
     "no-unreachable": "error",
     "no-unsafe-finally": "error",
     "no-unsafe-negation": "error",
     "no-unsafe-optional-chaining": ["error", { "disallowArithmeticOperators": true }],
+    "no-unused-private-class-members": "error",
     "use-isnan": ["error", { "enforceForIndexOf": true, }],
     "valid-typeof": ["error", { "requireStringLiterals": true, }],
 
@@ -133,7 +142,6 @@
     "strict": ["off", "global"],
 
     // Variables
-    "no-catch-shadow": "error",
     "no-delete-var": "error",
     "no-label-var": "error",
     "no-shadow": "error",
@@ -150,9 +158,6 @@
       "variables": false,
     }],
 
-    // Node.js and CommonJS
-    "no-buffer-constructor": "error",
-
     // Stylistic Issues
     "lines-between-class-members": ["error", "always"],
     "max-len": ["error", {
@@ -167,8 +172,24 @@
     "no-new-object": "error",
     "no-restricted-syntax": ["error",
       {
+        "selector": "BinaryExpression[operator='instanceof'][right.name='Object']",
+        "message": "Use `typeof` rather than `instanceof Object`.",
+      },
+      {
         "selector": "CallExpression[callee.name='assert'][arguments.length!=2]",
         "message": "`assert()` must always be invoked with two arguments.",
+      },
+      {
+        "selector": "CallExpression[callee.name='isCmd'][arguments.length<2]",
+        "message": "Use `instanceof Cmd` rather than `isCmd()` with one argument.",
+      },
+      {
+        "selector": "CallExpression[callee.name='isDict'][arguments.length<2]",
+        "message": "Use `instanceof Dict` rather than `isDict()` with one argument.",
+      },
+      {
+        "selector": "CallExpression[callee.name='isName'][arguments.length<2]",
+        "message": "Use `instanceof Name` rather than `isName()` with one argument.",
       },
       {
         "selector": "NewExpression[callee.name='Cmd']",
@@ -184,6 +205,7 @@
       },
     ],
     "no-unneeded-ternary": "error",
+    "operator-assignment": "error",
     "prefer-exponentiation-operator": "error",
     "spaced-comment": ["error", "always", {
       "block": {

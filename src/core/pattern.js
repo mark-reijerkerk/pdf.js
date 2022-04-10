@@ -23,8 +23,8 @@ import {
   Util,
   warn,
 } from "../shared/util.js";
+import { BaseStream } from "./base_stream.js";
 import { ColorSpace } from "./colorspace.js";
-import { isStream } from "./primitives.js";
 import { MissingDataException } from "./core_utils.js";
 
 const ShadingType = {
@@ -44,14 +44,13 @@ class Pattern {
 
   static parseShading(
     shading,
-    matrix,
     xref,
     res,
     handler,
     pdfFunctionFactory,
     localColorSpaceCache
   ) {
-    const dict = isStream(shading) ? shading.dict : shading;
+    const dict = shading instanceof BaseStream ? shading.dict : shading;
     const type = dict.get("ShadingType");
 
     try {
@@ -60,7 +59,6 @@ class Pattern {
         case ShadingType.RADIAL:
           return new RadialAxialShading(
             dict,
-            matrix,
             xref,
             res,
             pdfFunctionFactory,
@@ -72,7 +70,6 @@ class Pattern {
         case ShadingType.TENSOR_PATCH_MESH:
           return new MeshShading(
             shading,
-            matrix,
             xref,
             res,
             pdfFunctionFactory,
@@ -115,20 +112,12 @@ class BaseShading {
 // Radial and axial shading have very similar implementations
 // If needed, the implementations can be broken into two classes.
 class RadialAxialShading extends BaseShading {
-  constructor(
-    dict,
-    matrix,
-    xref,
-    resources,
-    pdfFunctionFactory,
-    localColorSpaceCache
-  ) {
+  constructor(dict, xref, resources, pdfFunctionFactory, localColorSpaceCache) {
     super();
-    this.matrix = matrix;
     this.coordsArr = dict.getArray("Coords");
     this.shadingType = dict.get("ShadingType");
     const cs = ColorSpace.parse({
-      cs: dict.getRaw("ColorSpace") || dict.getRaw("CS"),
+      cs: dict.getRaw("CS") || dict.getRaw("ColorSpace"),
       xref,
       resources,
       pdfFunctionFactory,
@@ -244,17 +233,7 @@ class RadialAxialShading extends BaseShading {
       unreachable(`getPattern type unknown: ${shadingType}`);
     }
 
-    return [
-      "RadialAxial",
-      type,
-      this.bbox,
-      this.colorStops,
-      p0,
-      p1,
-      r0,
-      r1,
-      this.matrix,
-    ];
+    return ["RadialAxial", type, this.bbox, this.colorStops, p0, p1, r0, r1];
   }
 }
 
@@ -418,18 +397,16 @@ class MeshShading extends BaseShading {
 
   constructor(
     stream,
-    matrix,
     xref,
     resources,
     pdfFunctionFactory,
     localColorSpaceCache
   ) {
     super();
-    if (!isStream(stream)) {
+    if (!(stream instanceof BaseStream)) {
       throw new FormatError("Mesh data is not a stream");
     }
     const dict = stream.dict;
-    this.matrix = matrix;
     this.shadingType = dict.get("ShadingType");
     const bbox = dict.getArray("BBox");
     if (Array.isArray(bbox) && bbox.length === 4) {
@@ -438,7 +415,7 @@ class MeshShading extends BaseShading {
       this.bbox = null;
     }
     const cs = ColorSpace.parse({
-      cs: dict.getRaw("ColorSpace") || dict.getRaw("CS"),
+      cs: dict.getRaw("CS") || dict.getRaw("ColorSpace"),
       xref,
       resources,
       pdfFunctionFactory,
@@ -942,7 +919,6 @@ class MeshShading extends BaseShading {
       this.colors,
       this.figures,
       this.bounds,
-      this.matrix,
       this.bbox,
       this.background,
     ];

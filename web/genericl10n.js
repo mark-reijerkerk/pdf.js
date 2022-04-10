@@ -13,16 +13,21 @@
  * limitations under the License.
  */
 
+/** @typedef {import("./interfaces").IL10n} IL10n */
+
 import "../external/webL10n/l10n.js";
-import { getL10nFallback } from "./l10n_utils.js";
+import { fixupLangCode, getL10nFallback } from "./l10n_utils.js";
 
 const webL10n = document.webL10n;
 
+/**
+ * @implements {IL10n}
+ */
 class GenericL10n {
   constructor(lang) {
     this._lang = lang;
     this._ready = new Promise((resolve, reject) => {
-      webL10n.setLanguage(lang, () => {
+      webL10n.setLanguage(fixupLangCode(lang), () => {
         resolve(webL10n);
       });
     });

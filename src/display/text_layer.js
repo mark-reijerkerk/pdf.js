@@ -27,15 +27,16 @@ import {
  *   render (the object is returned by the page's `getTextContent` method).
  * @property {ReadableStream} [textContentStream] - Text content stream to
  *   render (the stream is returned by the page's `streamTextContent` method).
- * @property {HTMLElement} container - HTML element that will contain text runs.
+ * @property {DocumentFragment} container - The DOM node that will contain the
+ *   text runs.
  * @property {import("./display_utils").PageViewport} viewport - The target
  *   viewport to properly layout the text runs.
- * @property {Array<HTMLElement>} [textDivs] - HTML elements that are correspond
- *   to the text items of the textContent input. This is output and shall be
- *   initially be set to empty array.
+ * @property {Array<HTMLElement>} [textDivs] - HTML elements that correspond to
+ *   the text items of the textContent input.
+ *   This is output and shall initially be set to an empty array.
  * @property {Array<string>} [textContentItemsStr] - Strings that correspond to
- *    the `str` property of the text items of textContent input. This is output
- *   and shall be initially be set to empty array.
+ *   the `str` property of the text items of the textContent input.
+ *   This is output and shall initially be set to an empty array.
  * @property {number} [timeout] - Delay in milliseconds before rendering of the
  *   text runs occurs.
  * @property {boolean} [enhanceTextSelection] - Whether to turn on the text
@@ -118,18 +119,25 @@ function getAscent(fontFamily, ctx) {
 function appendText(task, geom, styles, ctx) {
   // Initialize all used properties to keep the caches monomorphic.
   const textDiv = document.createElement("span");
-  const textDivProperties = {
-    angle: 0,
-    canvasWidth: 0,
-    hasText: geom.str !== "",
-    hasEOL: geom.hasEOL,
-    originalTransform: null,
-    paddingBottom: 0,
-    paddingLeft: 0,
-    paddingRight: 0,
-    paddingTop: 0,
-    scale: 1,
-  };
+  const textDivProperties = task._enhanceTextSelection
+    ? {
+        angle: 0,
+        canvasWidth: 0,
+        hasText: geom.str !== "",
+        hasEOL: geom.hasEOL,
+        originalTransform: null,
+        paddingBottom: 0,
+        paddingLeft: 0,
+        paddingRight: 0,
+        paddingTop: 0,
+        scale: 1,
+      }
+    : {
+        angle: 0,
+        canvasWidth: 0,
+        hasText: geom.str !== "",
+        hasEOL: geom.hasEOL,
+      };
 
   task._textDivs.push(textDiv);
 
@@ -181,7 +189,7 @@ function appendText(task, geom, styles, ctx) {
     (task._enhanceTextSelection && AllWhitespaceRegexp.test(geom.str))
   ) {
     shouldScaleText = true;
-  } else if (geom.transform[0] !== geom.transform[3]) {
+  } else if (geom.str !== " " && geom.transform[0] !== geom.transform[3]) {
     const absScaleX = Math.abs(geom.transform[0]),
       absScaleY = Math.abs(geom.transform[3]);
     // When the horizontal/vertical scaling differs significantly, also scale
@@ -588,6 +596,11 @@ class TextLayerRenderTask {
     // Always clean-up the temporary canvas once rendering is no longer pending.
     this._capability.promise
       .finally(() => {
+        if (!this._enhanceTextSelection) {
+          // The `textDiv` properties are no longer needed.
+          this._textDivProperties = null;
+        }
+
         if (this._layoutTextCtx) {
           // Zeroing the width and height cause Firefox to release graphics
           // resources immediately, which can greatly reduce memory consumption.
@@ -597,7 +610,7 @@ class TextLayerRenderTask {
         }
       })
       .catch(() => {
-        /* Avoid "Uncaught promise" messages in the console. */
+        // Avoid "Uncaught promise" messages in the console.
       });
   }
 
@@ -615,7 +628,11 @@ class TextLayerRenderTask {
   cancel() {
     this._canceled = true;
     if (this._reader) {
-      this._reader.cancel(new AbortException("TextLayer task cancelled."));
+      this._reader
+        .cancel(new AbortException("TextLayer task cancelled."))
+        .catch(() => {
+          // Avoid "Uncaught promise" messages in the console.
+        });
       this._reader = null;
     }
     if (this._renderTimer !== null) {
@@ -675,8 +692,11 @@ class TextLayerRenderTask {
       const { width } = this._layoutTextCtx.measureText(textDiv.textContent);
 
       if (width > 0) {
-        textDivProperties.scale = textDivProperties.canvasWidth / width;
-        transform = `scaleX(${textDivProperties.scale})`;
+        const scale = textDivProperties.canvasWidth / width;
+        if (this._enhanceTextSelection) {
+          textDivProperties.scale = scale;
+        }
+        transform = `scaleX(${scale})`;
       }
     }
     if (textDivProperties.angle !== 0) {
@@ -741,8 +761,7 @@ class TextLayerRenderTask {
       pump();
     } else {
       throw new Error(
-        'Neither "textContent" nor "textContentStream"' +
-          " parameters specified."
+        'Neither "textContent" nor "textContentStream" parameters specified.'
       );
     }
 

@@ -19,7 +19,7 @@ import { ArithmeticDecoder } from "./arithmetic_decoder.js";
 
 class JpxError extends BaseException {
   constructor(msg) {
-    super(`JPX error: ${msg}`);
+    super(`JPX error: ${msg}`, "JpxError");
   }
 }
 
@@ -336,9 +336,6 @@ class JpxImage {
             const unsupported = [];
             if (cod.selectiveArithmeticCodingBypass) {
               unsupported.push("selectiveArithmeticCodingBypass");
-            }
-            if (cod.resetContextProbabilities) {
-              unsupported.push("resetContextProbabilities");
             }
             if (cod.terminationOnEachCodingPass) {
               unsupported.push("terminationOnEachCodingPass");
@@ -1203,6 +1200,11 @@ function parseTilePackets(context, data, offset, dataLength) {
           zeroBitPlanesTree = new TagTree(width, height);
           precinct.inclusionTree = inclusionTree;
           precinct.zeroBitPlanesTree = zeroBitPlanesTree;
+          for (let l = 0; l < layerNumber; l++) {
+            if (readBits(1) !== 0) {
+              throw new JpxError("Invalid tag tree");
+            }
+          }
         }
 
         if (inclusionTree.reset(codeblockColumn, codeblockRow, layerNumber)) {
@@ -1285,7 +1287,8 @@ function copyCoefficients(
   delta,
   mb,
   reversible,
-  segmentationSymbolUsed
+  segmentationSymbolUsed,
+  resetContextProbabilities
 ) {
   const x0 = subband.tbx0;
   const y0 = subband.tby0;
@@ -1351,6 +1354,11 @@ function copyCoefficients(
           }
           break;
       }
+
+      if (resetContextProbabilities) {
+        bitModel.reset();
+      }
+
       currentCodingpassType = (currentCodingpassType + 1) % 3;
     }
 
@@ -1399,6 +1407,8 @@ function transformTile(context, tile, c) {
   const scalarExpounded = quantizationParameters.scalarExpounded;
   const guardBits = quantizationParameters.guardBits;
   const segmentationSymbolUsed = codingStyleParameters.segmentationSymbolUsed;
+  const resetContextProbabilities =
+    codingStyleParameters.resetContextProbabilities;
   const precision = context.components[c].precision;
 
   const reversible = codingStyleParameters.reversibleTransformation;
@@ -1450,7 +1460,8 @@ function transformTile(context, tile, c) {
         delta,
         mb,
         reversible,
-        segmentationSymbolUsed
+        segmentationSymbolUsed,
+        resetContextProbabilities
       );
     }
     subbandCoefficients.push({
@@ -2241,7 +2252,7 @@ class Transform {
 class IrreversibleTransform extends Transform {
   filter(x, offset, length) {
     const len = length >> 1;
-    offset = offset | 0;
+    offset |= 0;
     let j, n, current, next;
 
     const alpha = -1.586134342059924;
@@ -2327,7 +2338,7 @@ class IrreversibleTransform extends Transform {
 class ReversibleTransform extends Transform {
   filter(x, offset, length) {
     const len = length >> 1;
-    offset = offset | 0;
+    offset |= 0;
     let j, n;
 
     for (j = offset, n = len + 1; n--; j += 2) {

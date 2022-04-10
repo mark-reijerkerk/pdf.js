@@ -13,8 +13,9 @@
  * limitations under the License.
  */
 
-import { createObjectURL, createValidAbsoluteUrl, isPdfFile } from "pdfjs-lib";
-import { viewerCompatibilityParams } from "./viewer_compatibility.js";
+/** @typedef {import("./interfaces").IDownloadManager} IDownloadManager */
+
+import { createValidAbsoluteUrl, isPdfFile } from "pdfjs-lib";
 
 if (typeof PDFJSDev !== "undefined" && !PDFJSDev.test("CHROME || GENERIC")) {
   throw new Error(
@@ -42,6 +43,9 @@ function download(blobUrl, filename) {
   a.remove();
 }
 
+/**
+ * @implements {IDownloadManager}
+ */
 class DownloadManager {
   constructor() {
     this._openBlobUrls = new WeakMap();
@@ -49,16 +53,15 @@ class DownloadManager {
 
   downloadUrl(url, filename) {
     if (!createValidAbsoluteUrl(url, "http://example.com")) {
+      console.error(`downloadUrl - not a valid URL: ${url}`);
       return; // restricted/invalid URL
     }
     download(url + "#pdfjs.action=download", filename);
   }
 
   downloadData(data, filename, contentType) {
-    const blobUrl = createObjectURL(
-      data,
-      contentType,
-      viewerCompatibilityParams.disableCreateObjectURL
+    const blobUrl = URL.createObjectURL(
+      new Blob([data], { type: contentType })
     );
     download(blobUrl, filename);
   }
@@ -70,7 +73,7 @@ class DownloadManager {
     const isPdfData = isPdfFile(filename);
     const contentType = isPdfData ? "application/pdf" : "";
 
-    if (isPdfData && !viewerCompatibilityParams.disableCreateObjectURL) {
+    if (isPdfData) {
       let blobUrl = this._openBlobUrls.get(element);
       if (!blobUrl) {
         blobUrl = URL.createObjectURL(new Blob([data], { type: contentType }));
@@ -113,11 +116,6 @@ class DownloadManager {
    *   the "open with" dialog.
    */
   download(blob, url, filename, sourceEventType = "download") {
-    if (viewerCompatibilityParams.disableCreateObjectURL) {
-      // URL.createObjectURL is not supported
-      this.downloadUrl(url, filename);
-      return;
-    }
     const blobUrl = URL.createObjectURL(blob);
     download(blobUrl, filename);
   }

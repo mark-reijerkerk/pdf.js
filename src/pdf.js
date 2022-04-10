@@ -12,20 +12,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* eslint-disable sort-exports/sort-exports */
+
+// eslint-disable-next-line max-len
+/** @typedef {import("./display/api").PDFDocumentLoadingTask} PDFDocumentLoadingTask */
+/** @typedef {import("./display/api").PDFDocumentProxy} PDFDocumentProxy */
+/** @typedef {import("./display/api").PDFPageProxy} PDFPageProxy */
+/** @typedef {import("./display/api").RenderTask} RenderTask */
+/** @typedef {import("./display/display_utils").PageViewport} PageViewport */
 
 import {
-  addLinkAttributes,
-  getFilenameFromUrl,
-  getPdfFilenameFromUrl,
-  getXfaPageViewport,
-  isPdfFile,
-  isValidFetchUrl,
-  LinkTarget,
-  loadScript,
-  PDFDateString,
-  RenderingCancelledException,
-} from "./display/display_utils.js";
+  AnnotationMode,
+  CMapCompressionType,
+  createPromiseCapability,
+  createValidAbsoluteUrl,
+  InvalidPDFException,
+  MissingPDFException,
+  OPS,
+  PasswordResponses,
+  PermissionFlag,
+  shadow,
+  UnexpectedResponseException,
+  UNSUPPORTED_FEATURES,
+  Util,
+  VerbosityLevel,
+} from "./shared/util.js";
 import {
   build,
   getDocument,
@@ -36,22 +46,16 @@ import {
   version,
 } from "./display/api.js";
 import {
-  CMapCompressionType,
-  createObjectURL,
-  createPromiseCapability,
-  createValidAbsoluteUrl,
-  InvalidPDFException,
-  MissingPDFException,
-  OPS,
-  PasswordResponses,
-  PermissionFlag,
-  removeNullCharacters,
-  shadow,
-  UnexpectedResponseException,
-  UNSUPPORTED_FEATURES,
-  Util,
-  VerbosityLevel,
-} from "./shared/util.js";
+  getFilenameFromUrl,
+  getPdfFilenameFromUrl,
+  getXfaPageViewport,
+  isPdfFile,
+  isValidFetchUrl,
+  loadScript,
+  PDFDateString,
+  PixelsPerInch,
+  RenderingCancelledException,
+} from "./display/display_utils.js";
 import { AnnotationLayer } from "./display/annotation_layer.js";
 import { GlobalWorkerOptions } from "./display/worker_options.js";
 import { isNodeJS } from "./shared/is_node.js";
@@ -100,47 +104,37 @@ if (typeof PDFJSDev === "undefined" || !PDFJSDev.test("PRODUCTION")) {
 }
 
 export {
-  // From "./display/display_utils.js":
-  addLinkAttributes,
-  getFilenameFromUrl,
-  getPdfFilenameFromUrl,
-  isPdfFile,
-  LinkTarget,
-  loadScript,
-  PDFDateString,
-  RenderingCancelledException,
-  getXfaPageViewport,
-  // From "./display/api.js":
+  AnnotationLayer,
+  AnnotationMode,
   build,
-  getDocument,
-  LoopbackPort,
-  PDFDataRangeTransport,
-  PDFWorker,
-  version,
-  // From "./shared/util.js":
   CMapCompressionType,
-  createObjectURL,
   createPromiseCapability,
   createValidAbsoluteUrl,
+  getDocument,
+  getFilenameFromUrl,
+  getPdfFilenameFromUrl,
+  getXfaPageViewport,
+  GlobalWorkerOptions,
   InvalidPDFException,
+  isPdfFile,
+  loadScript,
+  LoopbackPort,
   MissingPDFException,
   OPS,
   PasswordResponses,
+  PDFDataRangeTransport,
+  PDFDateString,
+  PDFWorker,
   PermissionFlag,
-  removeNullCharacters,
+  PixelsPerInch,
+  RenderingCancelledException,
+  renderTextLayer,
   shadow,
+  SVGGraphics,
   UnexpectedResponseException,
   UNSUPPORTED_FEATURES,
   Util,
   VerbosityLevel,
-  // From "./display/annotation_layer.js":
-  AnnotationLayer,
-  // From "./display/worker_options.js":
-  GlobalWorkerOptions,
-  // From "./display/text_layer.js":
-  renderTextLayer,
-  // From "./display/svg.js":
-  SVGGraphics,
-  // From "./display/xfa_layer.js":
+  version,
   XfaLayer,
 };

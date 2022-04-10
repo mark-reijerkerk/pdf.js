@@ -12,20 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/* globals __non_webpack_require__ */
 
 import { isNodeJS } from "./is_node.js";
 
 // Skip compatibility checks for modern builds and if we already ran the module.
 if (
   (typeof PDFJSDev === "undefined" || !PDFJSDev.test("SKIP_BABEL")) &&
-  (typeof globalThis === "undefined" || !globalThis._pdfjsCompatibilityChecked)
+  !globalThis._pdfjsCompatibilityChecked
 ) {
-  // Provides support for globalThis in legacy browsers.
-  // Support: Firefox<65, Chrome<71, Safari<12.1
-  if (typeof globalThis === "undefined" || globalThis.Math !== Math) {
-    // eslint-disable-next-line no-global-assign
-    globalThis = require("core-js/es/global-this");
-  }
   globalThis._pdfjsCompatibilityChecked = true;
 
   // Support: Node.js
@@ -55,16 +50,9 @@ if (
     if (globalThis.DOMMatrix || !isNodeJS) {
       return;
     }
-    globalThis.DOMMatrix = require("dommatrix/dist/dommatrix.js");
-  })();
-
-  // Provides support for Object.fromEntries in legacy browsers.
-  // Support: Firefox<63, Chrome<73, Safari<12.1, Node.js<12.0.0
-  (function checkObjectFromEntries() {
-    if (Object.fromEntries) {
-      return;
-    }
-    require("core-js/es/object/from-entries.js");
+    globalThis.DOMMatrix = __non_webpack_require__(
+      "dommatrix/dist/dommatrix.js"
+    );
   })();
 
   // Provides support for *recent* additions to the Promise specification,
@@ -84,31 +72,24 @@ if (
 
   // Support: Node.js
   (function checkReadableStream() {
+    if (globalThis.ReadableStream || !isNodeJS) {
+      return;
+    }
+    globalThis.ReadableStream = __non_webpack_require__(
+      "web-streams-polyfill/dist/ponyfill.js"
+    ).ReadableStream;
+  })();
+
+  // Support: Firefox<94, Chrome<98, Safari<15.4, Node.js<17.0.0
+  (function checkStructuredClone() {
     if (typeof PDFJSDev !== "undefined" && PDFJSDev.test("IMAGE_DECODERS")) {
-      // The current image decoders are synchronous, hence `ReadableStream`
+      // The current image decoders are synchronous, hence `structuredClone`
       // shouldn't need to be polyfilled for the IMAGE_DECODERS build target.
       return;
     }
-    let isReadableStreamSupported = false;
-
-    if (typeof ReadableStream !== "undefined") {
-      // MS Edge may say it has ReadableStream but they are not up to spec yet.
-      try {
-        // eslint-disable-next-line no-new
-        new ReadableStream({
-          start(controller) {
-            controller.close();
-          },
-        });
-        isReadableStreamSupported = true;
-      } catch (e) {
-        // The ReadableStream constructor cannot be used.
-      }
-    }
-    if (isReadableStreamSupported) {
+    if (globalThis.structuredClone) {
       return;
     }
-    globalThis.ReadableStream =
-      require("web-streams-polyfill/dist/ponyfill.js").ReadableStream;
+    require("core-js/web/structured-clone.js");
   })();
 }

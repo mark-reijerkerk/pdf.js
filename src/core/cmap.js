@@ -16,11 +16,11 @@
 import {
   CMapCompressionType,
   FormatError,
-  isString,
   unreachable,
   warn,
 } from "../shared/util.js";
-import { isCmd, isEOF, isName, isStream } from "./primitives.js";
+import { Cmd, EOF, isCmd, Name } from "./primitives.js";
+import { BaseStream } from "./base_stream.js";
 import { Lexer } from "./parser.js";
 import { MissingDataException } from "./core_utils.js";
 import { Stream } from "./stream.js";
@@ -242,10 +242,17 @@ class CMap {
     const lastByte = dstLow.length - 1;
     while (low <= high) {
       this._map[low++] = dstLow;
-      // Only the last byte has to be incremented.
+      // Only the last byte has to be incremented (in the normal case).
+      const nextCharCode = dstLow.charCodeAt(lastByte) + 1;
+      if (nextCharCode > 0xff) {
+        dstLow =
+          dstLow.substring(0, lastByte - 1) +
+          String.fromCharCode(dstLow.charCodeAt(lastByte - 1) + 1) +
+          "\x00";
+        continue;
+      }
       dstLow =
-        dstLow.substring(0, lastByte) +
-        String.fromCharCode(dstLow.charCodeAt(lastByte) + 1);
+        dstLow.substring(0, lastByte) + String.fromCharCode(nextCharCode);
     }
   }
 
@@ -534,7 +541,7 @@ const BinaryCMapReader = (function BinaryCMapReaderClosure() {
         bufferSize = 0;
       while (i >= 0) {
         while (bufferSize < 8 && stack.length > 0) {
-          buffer = (stack[--sp] << bufferSize) | buffer;
+          buffer |= stack[--sp] << bufferSize;
           bufferSize += 7;
         }
         num[i] = buffer & 255;
@@ -759,7 +766,7 @@ const CMapFactory = (function CMapFactoryClosure() {
   }
 
   function expectString(obj) {
-    if (!isString(obj)) {
+    if (typeof obj !== "string") {
       throw new FormatError("Malformed CMap: expected string.");
     }
   }
@@ -773,7 +780,7 @@ const CMapFactory = (function CMapFactoryClosure() {
   function parseBfChar(cMap, lexer) {
     while (true) {
       let obj = lexer.getObj();
-      if (isEOF(obj)) {
+      if (obj === EOF) {
         break;
       }
       if (isCmd(obj, "endbfchar")) {
@@ -792,7 +799,7 @@ const CMapFactory = (function CMapFactoryClosure() {
   function parseBfRange(cMap, lexer) {
     while (true) {
       let obj = lexer.getObj();
-      if (isEOF(obj)) {
+      if (obj === EOF) {
         break;
       }
       if (isCmd(obj, "endbfrange")) {
@@ -804,13 +811,13 @@ const CMapFactory = (function CMapFactoryClosure() {
       expectString(obj);
       const high = strToInt(obj);
       obj = lexer.getObj();
-      if (Number.isInteger(obj) || isString(obj)) {
+      if (Number.isInteger(obj) || typeof obj === "string") {
         const dstLow = Number.isInteger(obj) ? String.fromCharCode(obj) : obj;
         cMap.mapBfRange(low, high, dstLow);
       } else if (isCmd(obj, "[")) {
         obj = lexer.getObj();
         const array = [];
-        while (!isCmd(obj, "]") && !isEOF(obj)) {
+        while (!isCmd(obj, "]") && obj !== EOF) {
           array.push(obj);
           obj = lexer.getObj();
         }
@@ -825,7 +832,7 @@ const CMapFactory = (function CMapFactoryClosure() {
   function parseCidChar(cMap, lexer) {
     while (true) {
       let obj = lexer.getObj();
-      if (isEOF(obj)) {
+      if (obj === EOF) {
         break;
       }
       if (isCmd(obj, "endcidchar")) {
@@ -843,7 +850,7 @@ const CMapFactory = (function CMapFactoryClosure() {
   function parseCidRange(cMap, lexer) {
     while (true) {
       let obj = lexer.getObj();
-      if (isEOF(obj)) {
+      if (obj === EOF) {
         break;
       }
       if (isCmd(obj, "endcidrange")) {
@@ -864,18 +871,18 @@ const CMapFactory = (function CMapFactoryClosure() {
   function parseCodespaceRange(cMap, lexer) {
     while (true) {
       let obj = lexer.getObj();
-      if (isEOF(obj)) {
+      if (obj === EOF) {
         break;
       }
       if (isCmd(obj, "endcodespacerange")) {
         return;
       }
-      if (!isString(obj)) {
+      if (typeof obj !== "string") {
         break;
       }
       const low = strToInt(obj);
       obj = lexer.getObj();
-      if (!isString(obj)) {
+      if (typeof obj !== "string") {
         break;
       }
       const high = strToInt(obj);
@@ -893,7 +900,7 @@ const CMapFactory = (function CMapFactoryClosure() {
 
   function parseCMapName(cMap, lexer) {
     const obj = lexer.getObj();
-    if (isName(obj) && isString(obj.name)) {
+    if (obj instanceof Name) {
       cMap.name = obj.name;
     }
   }
@@ -903,21 +910,21 @@ const CMapFactory = (function CMapFactoryClosure() {
     objLoop: while (true) {
       try {
         const obj = lexer.getObj();
-        if (isEOF(obj)) {
+        if (obj === EOF) {
           break;
-        } else if (isName(obj)) {
+        } else if (obj instanceof Name) {
           if (obj.name === "WMode") {
             parseWMode(cMap, lexer);
           } else if (obj.name === "CMapName") {
             parseCMapName(cMap, lexer);
           }
           previous = obj;
-        } else if (isCmd(obj)) {
+        } else if (obj instanceof Cmd) {
           switch (obj.cmd) {
             case "endcmap":
               break objLoop;
             case "usecmap":
-              if (isName(previous)) {
+              if (previous instanceof Name) {
                 embeddedUseCMap = previous.name;
               }
               break;
@@ -1016,9 +1023,9 @@ const CMapFactory = (function CMapFactoryClosure() {
       const fetchBuiltInCMap = params.fetchBuiltInCMap;
       const useCMap = params.useCMap;
 
-      if (isName(encoding)) {
+      if (encoding instanceof Name) {
         return createBuiltInCMap(encoding.name, fetchBuiltInCMap);
-      } else if (isStream(encoding)) {
+      } else if (encoding instanceof BaseStream) {
         const parsedCMap = await parseCMap(
           /* cMap = */ new CMap(),
           /* lexer = */ new Lexer(encoding),

@@ -17,7 +17,8 @@
 "use strict";
 
 const autoprefixer = require("autoprefixer");
-const calc = require("postcss-calc");
+const postcssDirPseudoClass = require("postcss-dir-pseudo-class");
+const postcssLogical = require("postcss-logical");
 const fs = require("fs");
 const gulp = require("gulp");
 const postcss = require("gulp-postcss");
@@ -63,7 +64,7 @@ const DIST_DIR = BUILD_DIR + "dist/";
 const TYPES_DIR = BUILD_DIR + "types/";
 const TMP_DIR = BUILD_DIR + "tmp/";
 const TYPESTEST_DIR = BUILD_DIR + "typestest/";
-const COMMON_WEB_FILES = ["web/images/*.{png,svg,gif,cur}", "web/debugger.js"];
+const COMMON_WEB_FILES = ["web/images/*.{png,svg,gif}", "web/debugger.js"];
 const MOZCENTRAL_DIFF_FILE = "mozcentral.diff";
 
 const REPO = "git@github.com:mozilla/pdf.js.git";
@@ -92,10 +93,10 @@ const EDGE_TRANSLATE_LOCALES = [
 const AUTOPREFIXER_CONFIG = {
   overrideBrowserslist: [
     "last 2 versions",
-    "Chrome >= 68",
+    "Chrome >= 73",
     "Firefox ESR",
-    "Safari >= 11.1",
-    "> 0.5%",
+    "Safari >= 12.1",
+    "> 1%",
     "not IE > 0",
     "not dead",
   ],
@@ -104,7 +105,7 @@ const AUTOPREFIXER_CONFIG = {
 const DEFINES = Object.freeze({
   PRODUCTION: true,
   SKIP_BABEL: true,
-  TESTING: false,
+  TESTING: undefined,
   // The main build targets:
   GENERIC: false,
   MOZCENTRAL: false,
@@ -193,7 +194,10 @@ function createWebpackConfig(
   const bundleDefines = builder.merge(defines, {
     BUNDLE_VERSION: versionInfo.version,
     BUNDLE_BUILD: versionInfo.commit,
-    TESTING: defines.TESTING || process.env.TESTING === "true",
+    TESTING:
+      defines.TESTING !== undefined
+        ? defines.TESTING
+        : process.env.TESTING === "true",
     DEFAULT_PREFERENCES: defaultPreferencesDir
       ? getDefaultPreferences(defaultPreferencesDir)
       : {},
@@ -222,9 +226,6 @@ function createWebpackConfig(
   }
   const babelExcludeRegExp = new RegExp(`(${babelExcludes.join("|")})`);
 
-  // Since logical assignment operators is a fairly new ECMAScript feature,
-  // for now we translate these regardless of the `SKIP_BABEL` value (with the
-  // exception of `MOZCENTRAL`/`TESTING`-builds where this isn't an issue).
   const babelPlugins = [
     "@babel/plugin-transform-modules-commonjs",
     [
@@ -235,9 +236,6 @@ function createWebpackConfig(
       },
     ],
   ];
-  if (!bundleDefines.MOZCENTRAL && !bundleDefines.TESTING) {
-    babelPlugins.push("@babel/plugin-proposal-logical-assignment-operators");
-  }
 
   const plugins = [];
   if (!disableLicenseHeader) {
@@ -343,6 +341,10 @@ function replaceWebpackRequire() {
   return replace("__webpack_require__", "__w_pdfjs_require__");
 }
 
+function replaceNonWebpackImport() {
+  return replace("__non_webpack_import__", "import");
+}
+
 function replaceJSRootName(amdName, jsName) {
   // Saving old-style JS module name.
   return replace(
@@ -365,6 +367,7 @@ function createMainBundle(defines) {
     .src("./src/pdf.js")
     .pipe(webpack2Stream(mainFileConfig))
     .pipe(replaceWebpackRequire())
+    .pipe(replaceNonWebpackImport())
     .pipe(replaceJSRootName(mainAMDName, "pdfjsLib"));
 }
 
@@ -386,6 +389,7 @@ function createScriptingBundle(defines, extraOptions = undefined) {
     .src("./src/pdf.scripting.js")
     .pipe(webpack2Stream(scriptingFileConfig))
     .pipe(replaceWebpackRequire())
+    .pipe(replaceNonWebpackImport())
     .pipe(
       replace(
         'root["' + scriptingAMDName + '"] = factory()',
@@ -444,6 +448,7 @@ function createSandboxBundle(defines, extraOptions = undefined) {
     .src("./src/pdf.sandbox.js")
     .pipe(webpack2Stream(sandboxFileConfig))
     .pipe(replaceWebpackRequire())
+    .pipe(replaceNonWebpackImport())
     .pipe(replaceJSRootName(sandboxAMDName, "pdfjsSandbox"));
 }
 
@@ -461,6 +466,7 @@ function createWorkerBundle(defines) {
     .src("./src/pdf.worker.js")
     .pipe(webpack2Stream(workerFileConfig))
     .pipe(replaceWebpackRequire())
+    .pipe(replaceNonWebpackImport())
     .pipe(replaceJSRootName(workerAMDName, "pdfjsWorker"));
 }
 
@@ -476,7 +482,10 @@ function createWebBundle(defines, options) {
       defaultPreferencesDir: options.defaultPreferencesDir,
     }
   );
-  return gulp.src("./web/viewer.js").pipe(webpack2Stream(viewerFileConfig));
+  return gulp
+    .src("./web/viewer.js")
+    .pipe(webpack2Stream(viewerFileConfig))
+    .pipe(replaceNonWebpackImport());
 }
 
 function createComponentsBundle(defines) {
@@ -493,6 +502,7 @@ function createComponentsBundle(defines) {
     .src("./web/pdf_viewer.component.js")
     .pipe(webpack2Stream(componentsFileConfig))
     .pipe(replaceWebpackRequire())
+    .pipe(replaceNonWebpackImport())
     .pipe(replaceJSRootName(componentsAMDName, "pdfjsViewer"));
 }
 
@@ -510,6 +520,7 @@ function createImageDecodersBundle(defines) {
     .src("./src/pdf.image_decoders.js")
     .pipe(webpack2Stream(componentsFileConfig))
     .pipe(replaceWebpackRequire())
+    .pipe(replaceNonWebpackImport())
     .pipe(replaceJSRootName(imageDecodersAMDName, "pdfjsImageDecoders"));
 }
 
@@ -565,19 +576,30 @@ function getTempFile(prefix, suffix) {
   return filePath;
 }
 
-function createTestSource(testsName, bot) {
+function createTestSource(testsName, { bot = false, xfaOnly = false } = {}) {
   const source = stream.Readable({ objectMode: true });
   source._read = function () {
     console.log();
     console.log("### Running " + testsName + " tests");
 
     const PDF_TEST = process.env.PDF_TEST || "test_manifest.json";
+    let forceNoChrome = false;
     const args = ["test.js"];
     switch (testsName) {
       case "browser":
-        args.push("--reftest", "--manifestFile=" + PDF_TEST);
-        break;
-      case "browser (no reftest)":
+        if (!bot) {
+          args.push("--reftest");
+        } else {
+          const os = process.env.OS;
+          if (/windows/i.test(os)) {
+            // The browser-tests are too slow in Google Chrome on the Windows
+            // bot, causing a timeout, hence disabling them for now.
+            forceNoChrome = true;
+          }
+        }
+        if (xfaOnly) {
+          args.push("--xfaOnly");
+        }
         args.push("--manifestFile=" + PDF_TEST);
         break;
       case "unit":
@@ -596,7 +618,7 @@ function createTestSource(testsName, bot) {
     if (bot) {
       args.push("--strictVerify");
     }
-    if (process.argv.includes("--noChrome")) {
+    if (process.argv.includes("--noChrome") || forceNoChrome) {
       args.push("--noChrome");
     }
 
@@ -613,11 +635,18 @@ function makeRef(done, bot) {
   console.log();
   console.log("### Creating reference images");
 
+  let forceNoChrome = false;
   const args = ["test.js", "--masterMode"];
   if (bot) {
+    const os = process.env.OS;
+    if (/windows/i.test(os)) {
+      // The browser-tests are too slow in Google Chrome on the Windows
+      // bot, causing a timeout, hence disabling them for now.
+      forceNoChrome = true;
+    }
     args.push("--noPrompts", "--strictVerify");
   }
-  if (process.argv.includes("--noChrome")) {
+  if (process.argv.includes("--noChrome") || forceNoChrome) {
     args.push("--noChrome");
   }
 
@@ -694,11 +723,14 @@ function buildDefaultPreferences(defines, dir) {
     SKIP_BABEL: false,
     BUNDLE_VERSION: 0, // Dummy version
     BUNDLE_BUILD: 0, // Dummy build
-    TESTING: defines.TESTING || process.env.TESTING === "true",
+    TESTING:
+      defines.TESTING !== undefined
+        ? defines.TESTING
+        : process.env.TESTING === "true",
   });
 
   const inputStream = merge([
-    gulp.src(["web/{app_options,viewer_compatibility}.js"], {
+    gulp.src(["web/app_options.js"], {
       base: ".",
     }),
   ]);
@@ -797,16 +829,15 @@ gulp.task("cmaps", function (done) {
   done();
 });
 
-function preprocessCSS(source, mode, defines, cleanup) {
+function preprocessCSS(source, defines) {
   const outName = getTempFile("~preprocess", ".css");
-  builder.preprocessCSS(mode, source, outName);
+  builder.preprocessCSS(source, outName, defines);
   let out = fs.readFileSync(outName).toString();
   fs.unlinkSync(outName);
-  if (cleanup) {
-    // Strip out all license headers in the middle.
-    const reg = /\n\/\* Copyright(.|\n)*?Mozilla Foundation(.|\n)*?\*\//g;
-    out = out.replace(reg, "");
-  }
+
+  // Strip out all license headers in the middle.
+  const reg = /\n\/\* Copyright(.|\n)*?Mozilla Foundation(.|\n)*?\*\//g;
+  out = out.replace(reg, "");
 
   const i = source.lastIndexOf("/");
   return createStringSource(source.substr(i + 1), out);
@@ -845,8 +876,14 @@ function buildGeneric(defines, dir) {
     createStandardFontBundle().pipe(gulp.dest(dir + "web/standard_fonts")),
 
     preprocessHTML("web/viewer.html", defines).pipe(gulp.dest(dir + "web")),
-    preprocessCSS("web/viewer.css", "generic", defines, true)
-      .pipe(postcss([calc(), autoprefixer(AUTOPREFIXER_CONFIG)]))
+    preprocessCSS("web/viewer.css", defines)
+      .pipe(
+        postcss([
+          postcssLogical({ preserve: true }),
+          postcssDirPseudoClass(),
+          autoprefixer(AUTOPREFIXER_CONFIG),
+        ])
+      )
       .pipe(gulp.dest(dir + "web")),
 
     gulp
@@ -989,8 +1026,14 @@ function buildComponents(defines, dir) {
   return merge([
     createComponentsBundle(defines).pipe(gulp.dest(dir)),
     gulp.src(COMPONENTS_IMAGES).pipe(gulp.dest(dir + "images")),
-    preprocessCSS("web/pdf_viewer.css", "components", defines, true)
-      .pipe(postcss([calc(), autoprefixer(AUTOPREFIXER_CONFIG)]))
+    preprocessCSS("web/pdf_viewer.css", defines)
+      .pipe(
+        postcss([
+          postcssLogical({ preserve: true }),
+          postcssDirPseudoClass(),
+          autoprefixer(AUTOPREFIXER_CONFIG),
+        ])
+      )
       .pipe(gulp.dest(dir)),
   ]);
 }
@@ -1079,8 +1122,14 @@ function buildMinified(defines, dir) {
     createStandardFontBundle().pipe(gulp.dest(dir + "web/standard_fonts")),
 
     preprocessHTML("web/viewer.html", defines).pipe(gulp.dest(dir + "web")),
-    preprocessCSS("web/viewer.css", "minified", defines, true)
-      .pipe(postcss([calc(), autoprefixer(AUTOPREFIXER_CONFIG)]))
+    preprocessCSS("web/viewer.css", defines)
+      .pipe(
+        postcss([
+          postcssLogical({ preserve: true }),
+          postcssDirPseudoClass(),
+          autoprefixer(AUTOPREFIXER_CONFIG),
+        ])
+      )
       .pipe(gulp.dest(dir + "web")),
 
     gulp
@@ -1280,13 +1329,6 @@ gulp.task(
       const version = versionJSON.version,
         commit = versionJSON.commit;
 
-      // Ignore the fallback cursor images, since they're unnecessary in
-      // Firefox.
-      const MOZCENTRAL_COMMON_WEB_FILES = [
-        ...COMMON_WEB_FILES,
-        "!web/images/*.cur",
-      ];
-
       return merge([
         createMainBundle(defines).pipe(
           gulp.dest(MOZCENTRAL_CONTENT_DIR + "build")
@@ -1304,7 +1346,7 @@ gulp.task(
           gulp.dest(MOZCENTRAL_CONTENT_DIR + "web")
         ),
         gulp
-          .src(MOZCENTRAL_COMMON_WEB_FILES, { base: "web/" })
+          .src(COMMON_WEB_FILES, { base: "web/" })
           .pipe(gulp.dest(MOZCENTRAL_CONTENT_DIR + "web")),
         createCMapBundle().pipe(
           gulp.dest(MOZCENTRAL_CONTENT_DIR + "web/cmaps")
@@ -1316,7 +1358,7 @@ gulp.task(
         preprocessHTML("web/viewer.html", defines).pipe(
           gulp.dest(MOZCENTRAL_CONTENT_DIR + "web")
         ),
-        preprocessCSS("web/viewer.css", "mozcentral", defines, true)
+        preprocessCSS("web/viewer.css", defines)
           .pipe(
             postcss([
               autoprefixer({
@@ -1408,9 +1450,13 @@ gulp.task(
         preprocessHTML("web/viewer.html", defines).pipe(
           gulp.dest(CHROME_BUILD_CONTENT_DIR + "web")
         ),
-        preprocessCSS("web/viewer.css", "chrome", defines, true)
+        preprocessCSS("web/viewer.css", defines)
           .pipe(
-            postcss([autoprefixer({ overrideBrowserslist: ["chrome >= 68"] })])
+            postcss([
+              postcssLogical({ preserve: true }),
+              postcssDirPseudoClass(),
+              autoprefixer({ overrideBrowserslist: ["Chrome >= 73"] }),
+            ])
           )
           .pipe(gulp.dest(CHROME_BUILD_CONTENT_DIR + "web")),
 
@@ -1437,7 +1483,7 @@ gulp.task("jsdoc", function (done) {
   console.log();
   console.log("### Generating documentation (JSDoc)");
 
-  const JSDOC_FILES = ["src/doc_helper.js", "src/display/api.js"];
+  const JSDOC_FILES = ["src/display/api.js"];
 
   rimraf(JSDOC_BUILD_DIR, function () {
     mkdirp(JSDOC_BUILD_DIR).then(function () {
@@ -1454,7 +1500,7 @@ gulp.task("jsdoc", function (done) {
 gulp.task("types", function (done) {
   console.log("### Generating TypeScript definitions using `tsc`");
   const args = [
-    "target ES2020",
+    "target ESNext",
     "allowJS",
     "declaration",
     `outDir ${TYPES_DIR}`,
@@ -1476,12 +1522,14 @@ function buildLibHelper(bundleDefines, inputStream, outputDir) {
   // __non_webpack_require__ has to be used.
   // In this target, we don't create a bundle, so we have to replace the
   // occurrences of __non_webpack_require__ ourselves.
-  function babelPluginReplaceNonWebPackRequire(babel) {
+  function babelPluginReplaceNonWebpackImports(babel) {
     return {
       visitor: {
         Identifier(curPath, state) {
           if (curPath.node.name === "__non_webpack_require__") {
             curPath.replaceWith(babel.types.identifier("require"));
+          } else if (curPath.node.name === "__non_webpack_import__") {
+            curPath.replaceWith(babel.types.identifier("import"));
           }
         },
       },
@@ -1495,7 +1543,6 @@ function buildLibHelper(bundleDefines, inputStream, outputDir) {
       sourceType: "module",
       presets: skipBabel ? undefined : ["@babel/preset-env"],
       plugins: [
-        "@babel/plugin-proposal-logical-assignment-operators",
         "@babel/plugin-transform-modules-commonjs",
         [
           "@babel/plugin-transform-runtime",
@@ -1504,7 +1551,7 @@ function buildLibHelper(bundleDefines, inputStream, outputDir) {
             regenerator: true,
           },
         ],
-        babelPluginReplaceNonWebPackRequire,
+        babelPluginReplaceNonWebpackImports,
       ],
     }).code;
     const removeCjsSrc =
@@ -1538,7 +1585,10 @@ function buildLib(defines, dir) {
   const bundleDefines = builder.merge(defines, {
     BUNDLE_VERSION: versionInfo.version,
     BUNDLE_BUILD: versionInfo.commit,
-    TESTING: defines.TESTING || process.env.TESTING === "true",
+    TESTING:
+      defines.TESTING !== undefined
+        ? defines.TESTING
+        : process.env.TESTING === "true",
     DEFAULT_PREFERENCES: getDefaultPreferences(
       defines.SKIP_BABEL ? "lib/" : "lib-legacy/"
     ),
@@ -1632,8 +1682,7 @@ gulp.task(
       fs.readFileSync(BUILD_DIR + "version.json").toString()
     ).version;
 
-    config.stableVersion = config.betaVersion;
-    config.betaVersion = version;
+    config.stableVersion = version;
 
     return merge([
       createStringSource(CONFIG_FILE, JSON.stringify(config, null, 2)).pipe(
@@ -1674,9 +1723,34 @@ gulp.task(
   gulp.series(setTestEnv, "generic", "components", function runBotTest() {
     return streamqueue(
       { objectMode: true },
-      createTestSource("unit", true),
-      createTestSource("font", true),
-      createTestSource("browser (no reftest)", true),
+      createTestSource("unit", { bot: true }),
+      createTestSource("font", { bot: true }),
+      createTestSource("browser", { bot: true }),
+      createTestSource("integration")
+    );
+  })
+);
+
+gulp.task(
+  "xfatest",
+  gulp.series(setTestEnv, "generic", "components", function runXfaTest() {
+    return streamqueue(
+      { objectMode: true },
+      createTestSource("unit"),
+      createTestSource("browser", { xfaOnly: true }),
+      createTestSource("integration")
+    );
+  })
+);
+
+gulp.task(
+  "botxfatest",
+  gulp.series(setTestEnv, "generic", "components", function runBotXfaTest() {
+    return streamqueue(
+      { objectMode: true },
+      createTestSource("unit", { bot: true }),
+      createTestSource("font", { bot: true }),
+      createTestSource("browser", { bot: true, xfaOnly: true }),
       createTestSource("integration")
     );
   })
@@ -1687,6 +1761,21 @@ gulp.task(
   gulp.series(setTestEnv, "generic", "components", function runBrowserTest() {
     return createTestSource("browser");
   })
+);
+
+gulp.task(
+  "botbrowsertest",
+  gulp.series(
+    setTestEnv,
+    "generic",
+    "components",
+    function runBotBrowserTest() {
+      return streamqueue(
+        { objectMode: true },
+        createTestSource("browser", { bot: true })
+      );
+    }
+  )
 );
 
 gulp.task(
@@ -1870,6 +1959,7 @@ gulp.task(
       const defines = builder.merge(DEFINES, {
         CHROME: true,
         SKIP_BABEL: false,
+        TESTING: false,
       });
       return buildDefaultPreferences(defines, "lint-chromium/");
     },
@@ -1890,6 +1980,28 @@ gulp.task(
     }
   )
 );
+
+gulp.task("dev-css", function createDevCSS() {
+  console.log();
+  console.log("### Building development CSS");
+
+  const defines = builder.merge(DEFINES, { GENERIC: true, TESTING: true });
+  const cssDir = BUILD_DIR + "dev-css/";
+
+  return merge([
+    gulp.src("web/images/*", { base: "web/" }).pipe(gulp.dest(cssDir)),
+
+    preprocessCSS("web/viewer.css", defines)
+      .pipe(
+        postcss([
+          postcssLogical({ preserve: true }),
+          postcssDirPseudoClass(),
+          autoprefixer({ overrideBrowserslist: ["last 2 versions"] }),
+        ])
+      )
+      .pipe(gulp.dest(cssDir)),
+  ]);
+});
 
 gulp.task(
   "dev-sandbox",
@@ -1919,6 +2031,13 @@ gulp.task(
 gulp.task(
   "server",
   gulp.parallel(
+    function watchDevCSS() {
+      gulp.watch(
+        ["web/*.css", "web/images/*"],
+        { ignoreInitial: false },
+        gulp.series("dev-css")
+      );
+    },
     function watchDevSandbox() {
       gulp.watch(
         [
@@ -1993,31 +2112,11 @@ gulp.task("wintersmith", function (done) {
       done(error);
       return;
     }
-    const { stableVersion, betaVersion } = config;
 
     replaceInFile(
       GH_PAGES_DIR + "/getting_started/index.html",
       /STABLE_VERSION/g,
-      stableVersion
-    );
-    replaceInFile(
-      GH_PAGES_DIR + "/getting_started/index.html",
-      /BETA_VERSION/g,
-      betaVersion
-    );
-
-    // Hide the beta version button if there is only a stable version.
-    const groupClass = betaVersion ? "btn-group-vertical centered" : "";
-    const hiddenClass = betaVersion ? "" : "hidden";
-    replaceInFile(
-      GH_PAGES_DIR + "/getting_started/index.html",
-      /GROUP_CLASS/g,
-      groupClass
-    );
-    replaceInFile(
-      GH_PAGES_DIR + "/getting_started/index.html",
-      /HIDDEN_CLASS/g,
-      hiddenClass
+      config.stableVersion
     );
 
     console.log("Done building with wintersmith.");
@@ -2084,8 +2183,17 @@ function packageBowerJson() {
     homepage: DIST_HOMEPAGE,
     bugs: DIST_BUGS_URL,
     license: DIST_LICENSE,
+    dependencies: {
+      dommatrix: "^0.0.24",
+      "web-streams-polyfill": "^3.2.0",
+    },
     peerDependencies: {
-      "worker-loader": "^3.0.7", // Used in `external/dist/webpack.js`.
+      "worker-loader": "^3.0.8", // Used in `external/dist/webpack.js`.
+    },
+    peerDependenciesMeta: {
+      "worker-loader": {
+        optional: true,
+      },
     },
     browser: {
       canvas: false,
@@ -2379,7 +2487,7 @@ gulp.task("externaltest", function (done) {
 });
 
 gulp.task(
-  "npm-test",
+  "ci-test",
   gulp.series(
     gulp.parallel("lint", "externaltest", "unittestcli"),
     "lint-chromium",
