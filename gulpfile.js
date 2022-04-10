@@ -925,14 +925,18 @@ function buildGenericET(defines, dir) {
         }
       )
       .pipe(gulp.dest(dir + "web")),
-    createStringSource("locale.properties", locales).pipe(
-      gulp.dest(dir + "web/locale")
-    ),
     createCMapBundle().pipe(gulp.dest(dir + "web/cmaps")),
     createStandardFontBundle().pipe(gulp.dest(dir + "web/standard_fonts")),
+
     preprocessHTML("web/viewer.html", defines).pipe(gulp.dest(dir + "web")),
-    preprocessCSS("web/viewer.css", "generic", defines, true)
-      .pipe(postcss([calc(), autoprefixer(AUTOPREFIXER_CONFIG)]))
+    preprocessCSS("web/viewer.css", defines)
+      .pipe(
+        postcss([
+          postcssLogical({ preserve: true }),
+          postcssDirPseudoClass(),
+          autoprefixer(AUTOPREFIXER_CONFIG),
+        ])
+      )
       .pipe(gulp.dest(dir + "web")),
   ]);
 }
