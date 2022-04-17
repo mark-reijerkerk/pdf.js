@@ -61,6 +61,7 @@ class SecondaryToolbar {
     this.toolbarButtonContainer = options.toolbarButtonContainer;
     this.buttons = [
       { element: options.darkModeButton, eventName: "darkmode", close: true },
+      { element: options.copyLinkButton, eventName: "copylink", close: true },
       {
         element: options.presentationModeButton,
         eventName: "presentationmode",

@@ -59,6 +59,7 @@ import { LinkTarget, PDFLinkService } from "./pdf_link_service.js";
 import { OverlayManager } from "./overlay_manager.js";
 import { PasswordPrompt } from "./password_prompt.js";
 import { PDFAttachmentViewer } from "./pdf_attachment_viewer.js";
+import { PDFCopyLink } from "./pdf_copy_link.js";
 import { PDFDarkMode } from "./pdf_dark_mode.js";
 import { PDFDocumentProperties } from "./pdf_document_properties.js";
 import { PDFFindBar } from "./pdf_find_bar.js";
@@ -620,6 +621,12 @@ const PDFViewerApplication = {
 
     this.darkMode = new PDFDarkMode(
       appConfig.toolbar.darkModeButton,
+      eventBus,
+      this.l10n
+    );
+
+    this.copyLink = new PDFCopyLink(
+      appConfig.toolbar.copyLinkButton,
       eventBus,
       this.l10n
     );

@@ -91,6 +91,7 @@ function getViewerConfiguration() {
       openFile: document.getElementById("openFile"),
       print: document.getElementById("print"),
       darkModeButton: document.getElementById("darkMode"),
+      copyLinkButton: document.getElementById("copyLink"),
       presentationModeButton: document.getElementById("presentationMode"),
       download: document.getElementById("download"),
       viewBookmark: document.getElementById("viewBookmark"),
@@ -102,6 +103,7 @@ function getViewerConfiguration() {
         "secondaryToolbarButtonContainer"
       ),
       darkModeButton: document.getElementById("secondaryDarkMode"),
+      copyLinkButton: document.getElementById("secondaryCopyLink"),
       presentationModeButton: document.getElementById(
         "secondaryPresentationMode"
       ),

@@ -65,6 +65,7 @@ class Toolbar {
       { element: options.openFile, eventName: "openfile" },
       { element: options.print, eventName: "print" },
       { element: options.darkModeButton, eventName: "darkmode" },
+      { element: options.copyLinkButton, eventName: "copylink" },
       {
         element: options.presentationModeButton,
         eventName: "presentationmode",
