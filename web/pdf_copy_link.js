@@ -25,10 +25,7 @@ class PDFCopyLink {
     textArea.value = fileLink;
 
     // Avoid scrolling to bottom
-    textArea.style.top = "0";
-    textArea.style.left = "0";
-    textArea.style.position = "fixed";
-    textArea.style.visibility = "hidden";
+    textArea.style.cssText = "top: 0px; left: 0px; position: fixed;";
 
     document.body.appendChild(textArea);
     textArea.focus();
@@ -75,7 +72,7 @@ class PDFCopyLink {
         console.error(`Failed to copy PDF file link "${fileLink}": ${err}`);
       });
     } else {
-      this.fallbacKCopy();
+      this.fallbacKCopy(fileLink);
     }
   }
 }
